@@ -10,6 +10,7 @@ lora_target: all
 ### dataset
 dataset: mind2web
 template: qwen2_vl
+# todo cutoff_len
 cutoff_len: 1024
 max_samples: 1000
 overwrite_cache: true

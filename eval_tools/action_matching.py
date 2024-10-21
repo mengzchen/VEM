@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-import action_type as action_type_lib
+import eval_tools.action_type as action_type_lib
 
 
 _TAP_DISTANCE_THRESHOLD = 0.14  # Fraction of the screen

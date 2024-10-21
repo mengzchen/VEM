@@ -2,3 +2,7 @@ __pycache__
 data
 checkpoints
 LLaMA-Factory
+./data_preprocess/__pycache__
+cloudgpt-apim-token-cache.bin
+.vscode/
+*.xlsx
