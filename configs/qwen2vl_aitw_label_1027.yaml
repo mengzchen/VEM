@@ -8,23 +8,23 @@ finetuning_type: lora
 lora_target: all
 
 ### dataset
-dataset: mind2web
+dataset: aitw_label_2k
 template: qwen2_vl
-# todo cutoff_len
-cutoff_len: 1024
-max_samples: 1000
+# todo check max len
+cutoff_len: 32000
+max_samples: 10000
 overwrite_cache: true
 preprocessing_num_workers: 16
 
 ### output
-output_dir: checkpoints/debug
+output_dir: checkpoints/qwen2vl_aitw_label_1027
 logging_steps: 10
 save_steps: 500
 plot_loss: true
 overwrite_output_dir: true
 
 ### train
-per_device_train_batch_size: 1
+per_device_train_batch_size: 12
 gradient_accumulation_steps: 8
 learning_rate: 1.0e-4
 num_train_epochs: 3.0

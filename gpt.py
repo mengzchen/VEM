@@ -1,5 +1,9 @@
 from data_preprocess.cloudgpt_aoai import get_chat_completion, encode_image
 import utils
+from tqdm import tqdm
+import json
+import os
+
 
 prompt_v1 = """
 You are an expert in verifying GUI actions against task requirements. Your goal is to evaluate the provided action and its corresponding screenshot. Follow these guidelines:
@@ -111,13 +115,13 @@ Task: Evaluate the prediction of Current action based on the given GUI screensho
 Instructions:
 1. Review the Entire GUI Screenshot Sequence: Carefully examine the provided sequence of screenshots to understand the full sequence of actions and the current state of the user interface. If the predicted action involves a click, there will be a red point on the screenshot.
 2. Assess the Task Requirements: Understand what the task is asking for.
-3. Evaluate the Prediction of Current Action: Based on the provided history of actions and the predicted Current action, determine if it aligns with the task requirements.
+3. Evaluate the Prediction of Current Action: Based on the provided entire actions and GUI screenshot, determine if current action aligns with the task requirements.
 4. Rate the Action: Provide a rating based on four levels:
-   - Level 1: The action is highly likely to lead to an advertisement or a completely irrelevant page, significantly deviating from the task requirements.
+   - Level 1: The action is significantly deviating from the task requirements.
    - Level 2: The action might lead to a non-ideal page but is somewhat aligned with the task direction.
    - Level 3: The action contributes to the task requirements but may not be the most efficient path.
    - Level 4: The action is the optimal step towards achieving the task requirements.     
-5. Justify the Rating: Offer a brief explanation for the score assigned.
+5. Justify the Rating: Offer a brief explanation for the score assigned. (explanation can only mention actions had been done.)
 
 Explanation of Action:
 - `action_type`: includes 'click', 'scroll down', 'scroll up', 'status task complete' (indicates the task is completed), 'press home' (return to the home page), 'press back', 'type' (typing text)
@@ -131,10 +135,11 @@ Evaluation: [Detailed explanation of why the score was assigned]
 Example Input:
 Task Requirements: User needs to navigate to the settings page and enable Dark Mode. 
 Action and ScreenShot:
-1. Step 0: action_type is press home.
-2. Step 1: action_type is click, click_point is (0.3, 0.8).
-3. Step 2: action_type is status task complete.
-Current Action: Step 1: action_type is click, click_point is (0.3, 0.8).
+Step 0: action_type is press home.
+Step 1: action_type is click, click_point is (0.3, 0.8).
+Step 2: action_type is status task complete.
+Current Action: 
+Step 1: action_type is click, click_point is (0.3, 0.8).
 
 Example Output:
 Rating: 2
@@ -143,7 +148,8 @@ Evaluation: The predicted next action is clicking on the 'Offers' button, which 
 Task Requirements: {}
 Action and ScreenShot: 
 {}
-Current Action: {}
+Current Action: 
+{}
 """
 
 
@@ -152,7 +158,7 @@ def get_message(text_list, image_path_list) -> list:
         message = [{
             "role": "user",
             "content": [
-                {"type": "text", "text": text},
+                {"type": "text", "text": text_list},
             ]
         }]
     else:
@@ -187,16 +193,28 @@ class GPTScorer:
             ValueError
     
     def get_label_anns(self, ann_rpath: str, ann_wpath: str):
-        anns = utils.read_json(ann_rpath)[:200]
+        anns = utils.read_json(ann_rpath)
+        uncomplete_anns = []
+        if os.path.exists(ann_wpath):
+            complete_anns = utils.read_jsonl(ann_wpath)
+            utils.colorful_print(f"--> complete anns: {len(complete_anns)}", "green")
+            complete_ids = [f"{ann["ep_id"]}_{ann["step_id"]}" for ann in complete_anns]
+            for ann in anns:
+                if f"{ann["ep_id"]}_{ann["step_id"]}" in complete_ids:
+                    pass
+                else:
+                    uncomplete_anns.append(ann)
+        else:
+            uncomplete_anns = anns
 
-        label_anns = []
-        for ann in anns:
-            ann["response"] = self.get_one_answer(ann)
-            label_anns.append(ann)
+        with open(ann_wpath, "+a") as fout:
+            for ann in tqdm(uncomplete_anns):
+                ann["response"] = self.get_one_answer(ann)
+                ann["rating"] = utils.parse_rating(ann)
+                fout.writelines(json.dumps(ann) + "\n")
+        fout.close()
         
-        label_anns = utils.parse_rating(label_anns)
-        utils.write_json(label_anns, ann_wpath)
-        utils.write_to_excel(label_anns, f"{self.version}.xlsx")
+        # utils.write_to_excel(label_anns, f"{self.version}.xlsx")
 
     def get_one_answer(self, step: dict) -> str:
         task_descibe = self.prompt.format(step["task"], "\n".join(step["action_list"]), step["action"])
@@ -210,8 +228,8 @@ class GPTScorer:
             messages=message,
         )
 
-        print(response.choices[0].message.content)
-        utils.colorful_print("-" * 50, "blue")
+        # print(response.choices[0].message.content)
+        # utils.colorful_print("-" * 50, "blue")
 
         return response.choices[0].message.content
 
@@ -230,8 +248,9 @@ gptscorer = GPTScorer(version=version)
 # text = """
 # """
 # gptscorer.use_gpt(text=text, image_path=[])
+# exit()
 
-ann_rpath = "data/aitw_train_1017.json"
-ann_wpath = f"data/aitw_train_1017_label_{version}.json"
+ann_rpath = "data/aitw_anns/1022/aitw_train.json"
+ann_wpath = f"data/aitw_anns/1022/aitw_train_label_{version}.jsonl"
 gptscorer.get_label_anns(ann_rpath=ann_rpath, ann_wpath=ann_wpath)
 
