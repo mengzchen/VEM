@@ -1,10 +1,12 @@
 import os
 import sys
+import numpy as np
 sys.path.append(os.getcwd())
 
 from tqdm import tqdm
 from typing import List
 
+from data_preprocess import action2step
 import utils
 
 system_prompt = """Task: Evaluate the prediction of Current action based on the given GUI screenshot and task requirements.
@@ -15,9 +17,8 @@ Instructions:
 3. Evaluate the Prediction of Current Action: Based on the provided entire actions and GUI screenshot, determine if current action aligns with the task requirements.
 4. Rate the Action: Provide a rating based on four levels:
    - Level 1: The action is significantly deviating from the task requirements.
-   - Level 2: The action might lead to a non-ideal page but is somewhat aligned with the task direction.
-   - Level 3: The action contributes to the task requirements but may not be the most efficient path.
-   - Level 4: The action is the optimal step towards achieving the task requirements.     
+   - Level 2: The action contributes to the task requirements but may not be the most efficient path.
+   - Level 3: The action is the optimal step towards achieving the task requirements.     
 
 Explanation of Action:
 - `action_type`: includes 'click', 'scroll down', 'scroll up', 'status task complete' (indicates the task is completed), 'press home' (return to the home page), 'press back', 'type' (typing text)
@@ -25,7 +26,7 @@ Explanation of Action:
 - `typed_text`: if the action_type is type, this key will provide the content.
 
 Output Format:
-[1-4]
+[1-3]
 
 Example Input:
 Task Requirements: User needs to navigate to the settings page and enable Dark Mode. 
@@ -43,31 +44,6 @@ History Action:
 Current Action: 
 {}
 """
-
-def action2step(step, image_rpath):
-    action_type = step["action_type_id"]
-    action_type_text = step["action_type_text"]
-
-    if action_type == 4:
-        if action_type_text == "click":  
-            touch_point = step["touch"]
-            lift_point = step["lift"]
-            click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
-
-            # add point in screenshot
-            image_rpath = utils.add_visilize2screenshot(image_rpath=image_rpath, action_type="click", action_params=click_point)
-
-            click_point = [f"{item:.2f}" for item in click_point]
-            click_point = "({},{})".format(click_point[0], click_point[1])
-            action = "action_type is {}, click_point is {}.".format(action_type_text, click_point)
-        else: 
-            action = "action_type is {}.".format(action_type_text)
-    elif action_type == 3:
-        action = "action_type is {}, typed_text is {}.".format(action_type_text, step["type_text"])
-    else:
-        action = "action_type is {}.".format(action_type_text)
-
-    return action, image_rpath
 
 
 class AITW:
@@ -104,7 +80,7 @@ class AITW:
                 if len(img_filename) > 100:     
                     continue
 
-                action_step, image_rpath = action2step(step, image_rpath)
+                action_step, image_rpath = action2step(step, "aitw", image_rpath)
                 
                 action_list.append(f"step {step_id}: {action_step} <image>")
                 image_rpath_list.append(image_rpath)
@@ -124,12 +100,31 @@ class AITW:
         print(f"--- example\n{steps[:3]}")
         utils.write_json(steps, self.ann_wpath)
 
+def combine_level(ann):
+    if ann["rating"] == 3:
+        ann["rating"] = 2
+        ann["response"] = ann["response"].replace("Rating: 3", "Rating: 2")
+    elif ann["rating"] == 4:
+        ann["rating"] = 3
+        ann["response"] = ann["response"].replace("Rating: 4", "Rating: 3")
+    else:
+        pass
+
+    return ann
+
 def post_precess_label_data(rpath, version):
+    # todo 对训练数据做数据均衡
     anns = utils.read_jsonl(rpath)
+    
     train_anns = []
+    train_type_count = {1: 0, 2: 0, 3: 0, 4: 0}
+    val_anns = []
+    val_type_count = {1: 0, 2: 0, 3: 0, 4: 0}
 
     for ann in anns:
+        ann = combine_level(ann)
         history_actions = "\n".join(ann["action_list"][:ann["step_id"]]).replace("<image>", "")
+
         if version == "v1":
             conversations = [
                 {"role": "user", "content": system_prompt.format(ann["task"], history_actions, ann["action"])},
@@ -140,23 +135,53 @@ def post_precess_label_data(rpath, version):
                 {"role": "user", "content": system_prompt.format(ann["task"], history_actions, ann["action"])},
                 {"role": "assistant", "content": ann["response"]}
             ]
-        image_path_list = [image_path.replace("\\", "/") for image_path in ann["image_path_list"]]
-        train_anns.append({
-            "ep_id": ann["ep_id"], 
-            "step_id": ann["step_id"],
-            "task": ann["task"], 
-            "messages": conversations,
-            "images": [image_path_list[ann["step_id"]]]
-        })
-        # print(conversations[0]["content"])
-        # print(train_anns[0]["images"])
-        # exit()
         
+        image_path_list = [image_path.replace("\\", "/") for image_path in ann["image_path_list"]]
+
+        if ann["rating"] not in val_type_count.keys():
+            pass
+        elif val_type_count[ann["rating"]] < 50:
+            val_anns.append({
+                "ep_id": ann["ep_id"], 
+                "step_id": ann["step_id"],
+                "task": ann["task"], 
+                "messages": conversations,
+                "images": [image_path_list[ann["step_id"]]],
+                "rating": ann["rating"]
+            })
+            val_type_count[ann["rating"]] += 1
+        else:
+            if ann["rating"] == 3:
+                choice = np.random.choice(3, 1)
+                if choice == 1:
+                    train_anns.append({
+                        "ep_id": ann["ep_id"], 
+                        "step_id": ann["step_id"],
+                        "task": ann["task"], 
+                        "messages": conversations,
+                        "images": [image_path_list[ann["step_id"]]],
+                        "rating": ann["rating"]
+                    })
+                    train_type_count[ann["rating"]] += 1
+            else:
+                train_anns.append({
+                    "ep_id": ann["ep_id"], 
+                    "step_id": ann["step_id"],
+                    "task": ann["task"], 
+                    "messages": conversations,
+                    "images": [image_path_list[ann["step_id"]]],
+                    "rating": ann["rating"]
+                })
+                train_type_count[ann["rating"]] += 1
     
+    utils.colorful_print(train_type_count, "green")
+    utils.colorful_print(val_type_count, "green")
+
     utils.write_json(train_anns, wpath=rpath.split(".")[0] + f"_post_{version}.json")
+    utils.write_json(val_anns, wpath=rpath.split(".")[0] + f"_post_{version}_val.json")
     
 
 # aitw_data = AITW(split="train", parts=["general", "webshopping", "install", "googleapps"], date="1022")
 # aitw_data.get_label_data()
 
-post_precess_label_data(rpath="data/aitw_anns/1022/aitw_train_label_v5_2k.jsonl", version="v2")
+post_precess_label_data(rpath="data/aitw_anns/1102/aitw_train_label_v5.jsonl", version="v2")

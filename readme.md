@@ -9,3 +9,5 @@ pip install -e ".[torch,metrics]"
 
 llamafactory-cli train configs/qwen2_vl_lora.yaml
 llamafactory-cli export configs/qwen2vl_lora_merge.yaml
+
+git clone https://fangkaiyang@dev.azure.com/fangkaiyang/VLAM/_git/VLAM

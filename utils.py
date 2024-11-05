@@ -153,3 +153,6 @@ def sample_data(rpath, wpath):
 
     # sample_anns = random.sample(anns, 100)
     write_to_excel(sample_anns, wpath)
+
+anns = read_json("data/ufo_anns/1030/ufo_train.json")
+print(anns[0]["messages"][0]["content"])
