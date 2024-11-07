@@ -151,8 +151,4 @@ def sample_data(rpath, wpath):
     colorful_print(statistics, "green")
     colorful_print(last_step_statistics, "green")
 
-    # sample_anns = random.sample(anns, 100)
     write_to_excel(sample_anns, wpath)
-
-anns = read_json("data/ufo_anns/1030/ufo_train.json")
-print(anns[0]["messages"][0]["content"])

@@ -14,9 +14,9 @@ class UFO:
         self.dataset_name = dataset_name
         self.image_dir = f"data/images/{dataset_name}_images"
         self.split = split
-        self.train_ids = utils.read_json("data/ufo_anns/ufo_origin_data/split.json")["train_ids"]
-        self.test_ids = utils.read_json("data/ufo_anns/ufo_origin_data/split.json")["test_ids"]
-
+        self.train_ids = utils.read_json("data/ufo_anns/split.json")["train_ids"]
+        self.test_ids = utils.read_json("data/ufo_anns/split.json")["test_ids"]
+        
         if not os.path.exists(f"data/{dataset_name}_anns/{date}"):
             os.mkdir(f"data/{dataset_name}_anns/{date}")
         self.ann_wpath = f"data/{dataset_name}_anns/{date}/{dataset_name}_{split}.json"
@@ -35,34 +35,29 @@ class UFO:
             ann = utils.read_jsonl(ann_path)
             
             for step in ann:
-                task_id, step_id = step["task_id"], step["step_id"]
+                step_id = step["step_id"]
                 image_rpath = os.path.join(self.image_dir, id, f"{step_id}_annotated.png")
                 if not os.path.exists(image_rpath):
                     utils.colorful_print(f"{image_rpath} image not found", "red")
                     continue
                 
                 image_rpath = image_rpath.replace("\\", "/")
+                
                 # add user screenshot
                 conversations = [
-                    {"role": "user", "content": str(step["input"]["user"]) + "\ncurrent screenshot: <image>"},
+                    {"role": "user", "content": f"{step["input"]["system"]}\n{step["input"]["user"]}\n<Current Screenshot>: <image>"},
                     {"role": "assistant", "content": str(step["output"])}
                 ]
-
+                
                 steps.append({
-                    # "ep_id": id, 
-                    # "step_id": step_id,
-                    # "task": task_id, 
                     "messages": conversations,
                     "images": [image_rpath]
                 })
 
         utils.colorful_print("--- Num of total step: " + str(len(steps)), "green")
-        # print(f"--- example\n{steps[:3]}")
+        
         random.shuffle(steps)
         utils.write_json(steps, self.ann_wpath)
 
 ufo_data = UFO(dataset_name="ufo", split="test", date="1105")
 ufo_data.get_label_data()
-
-# anns = utils.read_json("data/ufo_anns/1030/ufo_train.json")
-# print(anns[0]["messages"])

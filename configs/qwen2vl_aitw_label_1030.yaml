@@ -1,42 +1,13 @@
+### Note: DO NOT use quantized model or quantization_bit when merging lora adapters
+
 ### model
 model_name_or_path: checkpoints/Qwen2-VL-7B-Instruct
-
-### method
-stage: sft
-do_train: true
-finetuning_type: lora
-lora_target: all
-
-### dataset
-dataset: aitw_label_1030
-eval_dataset: aitw_label_1030_eval
+adapter_name_or_path: checkpoints/qwen2vl_aitw_label_1102_v2/checkpoint-1620
 template: qwen2_vl
-cutoff_len: 2048
-max_samples: 10000
-overwrite_cache: true
-preprocessing_num_workers: 16
+finetuning_type: lora
 
-### output
-output_dir: checkpoints/qwen2vl_aitw_label_1030
-logging_steps: 10
-save_steps: 500
-plot_loss: true
-overwrite_output_dir: true
-
-### train
-per_device_train_batch_size: 6
-gradient_accumulation_steps: 2
-learning_rate: 1.0e-4
-num_train_epochs: 3.0
-lr_scheduler_type: cosine
-warmup_ratio: 0.1
-bf16: true
-ddp_timeout: 180000000
-
-### 
-predict_with_generate: false
-do_predict: false
-compute_accuracy: true
-per_device_eval_batch_size: 12
-eval_strategy: steps
-eval_steps: 100
+### export
+export_dir: checkpoints/qwen2vl_aitw_label_1102_v2_step_1620_merge
+export_size: 2
+export_device: cpu
+export_legacy_format: false
