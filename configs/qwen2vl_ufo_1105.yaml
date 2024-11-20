@@ -8,26 +8,26 @@ finetuning_type: lora
 lora_target: all
 
 ### dataset
-dataset: aitw_label_1030
-eval_dataset: aitw_label_1030_eval
+dataset: ufo_1105
+eval_dataset: ufo_1105_val
 template: qwen2_vl
-cutoff_len: 2048
-max_samples: 10000
+cutoff_len: 8192
+max_samples: 100000
 overwrite_cache: true
 preprocessing_num_workers: 16
 
 ### output
-output_dir: checkpoints/debug
+output_dir: checkpoints/qwen2vl_ufo_1105
 logging_steps: 10
 save_steps: 500
 plot_loss: true
 overwrite_output_dir: true
 
 ### train
-per_device_train_batch_size: 6
+per_device_train_batch_size: 1
 gradient_accumulation_steps: 2
 learning_rate: 1.0e-4
-num_train_epochs: 3.0
+num_train_epochs: 6.0
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
 bf16: true
@@ -37,6 +37,6 @@ ddp_timeout: 180000000
 predict_with_generate: false
 do_predict: false
 compute_accuracy: true
-per_device_eval_batch_size: 12
+per_device_eval_batch_size: 1
 eval_strategy: steps
-eval_steps: 10
+eval_steps: 500

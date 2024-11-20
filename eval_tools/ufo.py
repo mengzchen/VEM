@@ -1,7 +1,6 @@
 import  json
 import  numpy as np
-from collections import defaultdict
-from sklearn.metrics import precision_score
+from sklearn.metrics import accuracy_score
 
 def flatten_dict(d, parent_key='', sep='_'):
     items = []
@@ -33,22 +32,26 @@ def get_part_metrix(gt, pred, part):
 
     for key in all_keys:
         gt_value, pred_value = gt.get(key), pred.get(key)
+        # print(f"{gt_value} ==> {pred_value}")
         gt_vector.append(1 if gt_value is not None else 0)
         pred_vector.append(1 if gt_value == pred_value else 0)
+    
+    acc = accuracy_score(gt_vector, pred_vector)
 
-    precision = precision_score(gt_vector, pred_vector, zero_division=1)
-
-    return precision
+    return acc
     
 
 def compute_ufo(anns):
     error_count = 0
     accs_p1, accs_p2, accs_p3 = [], [], []
     step_scc = []
+    task_dic = {}
 
     for ann in anns:
-        gt = str2dic(ann["messages"])
+        task_id = ann["images"][0].split("/")[3]
+        gt = str2dic(ann["messages"][1]["content"])
         pred = str2dic(ann["prediction"])
+        
         if gt == None or pred == None:
             error_count += 1
             continue
@@ -57,13 +60,25 @@ def compute_ufo(anns):
         accs_p2.append(get_part_metrix(gt, pred, part={"function", "args"}))
         accs_p3.append(get_part_metrix(gt, pred, part={"status"}))
 
+        if task_id not in task_dic.keys():
+            task_dic[task_id] = []
         if accs_p1[-1] == 1 and accs_p2[-1] ==1 and accs_p3[-1] ==1:
             step_scc.append(1)
+            task_dic[task_id].append(1)
         else:
             step_scc.append(0)
+            task_dic[task_id].append(0)
+
+    task_scc = []
+    for k, v in task_dic.items():
+        if 0 not in v:
+            task_scc.append(1)
+        else:
+            task_scc.append(0)
 
     print(f'elem_acc:     {np.array(accs_p1).mean()}')
     print(f'args_acc:     {np.array(accs_p2).mean()}')
     print(f'status_acc:   {np.array(accs_p3).mean()}')
     print(f'step_success: {np.array(step_scc).mean()}')
+    print(f'task_success: {np.array(task_scc).mean()}')
     print(f'error_count:  {error_count}')

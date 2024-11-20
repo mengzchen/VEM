@@ -6,7 +6,7 @@ from openpyxl.drawing.image import Image
 import cv2
 from collections import defaultdict
 import pandas as pd
-import random
+import yaml
 
 
 def read_json(rpath: str):
@@ -99,44 +99,6 @@ def read_xlsx(rpath):
     return data.to_dict(orient="records")
 
 
-def check_fail_case():
-    anns = read_xlsx("data/aitz_failure_index.xlsx")
-    aitw_anns = read_json("data/aitw_data_train.json")
-
-    # general single webshopping install googleapps
-    aitw_anns = aitw_anns["install"] + aitw_anns["general"] + aitw_anns["single"] + aitw_anns["webshopping"] + aitw_anns["googleapps"]
-
-    aitw_dict = defaultdict()
-    for aitw_ann in aitw_anns:
-        last_case = aitw_ann[-1]
-        aitw_dict[last_case["ep_id"]] = last_case
-
-    count = 0
-    wb = openpyxl.Workbook()
-    ws = wb.active
-
-    ws.cell(row=1, column=1, value="Image")
-    ws.cell(row=1, column=2, value="Instruction")
-    ws.cell(row=1, column=2, value="Task")
-
-    for idx, ann in enumerate(anns, start=2):
-        try:
-            info = aitw_dict[ann["ep_id"]]
-            ws.cell(row=idx, column=2, value=ann["instruction"])
-            ws.cell(row=idx, column=3, value=info["goal"])
-            image_path = f"data/images/aitw_images/{info["img_filename"]}.png"
-            img = Image(image_path)
-            img.width, img.height = (240, 480)
-            ws.row_dimensions[idx].height = 400
-            ws.add_image(img, f'A{idx}')
-            count += 1
-        except:
-            print(ann["ep_id"])
-
-    ws.column_dimensions['A'].width = 20
-    wb.save("fail.xlsx")
-
-
 def sample_data(rpath, wpath):
     sample_anns = []
     statistics = defaultdict(int)
@@ -151,4 +113,6 @@ def sample_data(rpath, wpath):
     colorful_print(statistics, "green")
     colorful_print(last_step_statistics, "green")
 
+    # sample_anns = random.sample(anns, 100)
     write_to_excel(sample_anns, wpath)
+
