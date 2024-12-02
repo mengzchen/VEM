@@ -6,7 +6,7 @@ sys.path.append(os.getcwd())
 from tqdm import tqdm
 from typing import List
 
-from data_preprocess import action2step
+from data_preprocess import action2step, action_type_dict
 import utils
 
 system_prompt = """Task: Evaluate the prediction of Current action based on the given GUI screenshot and task requirements.
@@ -58,6 +58,7 @@ class AITW:
             os.mkdir(f"data/aitw_anns/{date}")
         self.ann_wpath = f"data/aitw_anns/{date}/aitw_{split}.json"
     
+
     def get_label_data(self):
         all_anns = utils.read_json(self.ann_rpath)
 
@@ -100,6 +101,57 @@ class AITW:
         print(f"--- example\n{steps[:3]}")
         utils.write_json(steps, self.ann_wpath)
 
+
+    def get_rl_data(self):
+        all_anns = utils.read_json(self.ann_rpath)
+
+        anns = []
+        for part in self.parts:
+            anns += all_anns[part]
+
+        utils.colorful_print(f"--- num of episode: {len(anns)}", "green")
+
+        steps = []
+        for episode in tqdm(anns):
+            action_list, autoui_action_list = [], []
+            action_plans = []
+            image_rpath_list = []
+            for step_id, step in enumerate(episode):
+                img_filename = step["img_filename"] + '.png'
+                image_rpath = os.path.join(self.image_dir, img_filename)
+                if not os.path.exists(image_rpath):
+                    utils.colorful_print(f"{image_rpath} image not found", "red")
+                    continue
+                if len(img_filename) > 100:     
+                    continue
+
+                action_step, image_rpath = action2step(step, "aitw", image_rpath)
+                
+                action_list.append(f"step {step_id}: {action_step}")
+                autoui_action_list.append(f"\"action_type\": \"{action_type_dict[step['action_type_id']]}\", \"touch_point\": \"{step['touch']}\", \"lift_point\": \"{step['lift']}\", \"typed_text\": \"{step['type_text']}\"")
+                action_plans.append(action_type_dict[step['action_type_id']])
+                image_rpath_list.append(image_rpath)
+            
+
+            for step_id, step in enumerate(episode):
+                history_actions = "\n".join(action_list[:step_id]) 
+                previous_actions = "\n".join(autoui_action_list[:step_id])
+                image_path = image_rpath_list[step_id].replace("_modify", "").replace("jpg", "png")
+                steps.append({
+                    "ep_id": step["ep_id"], 
+                    "step_id": step_id,
+                    # "annot_position": step["annot_position"],
+                    "image_path": image_path,
+                    "critic_input": system_prompt.format(step["goal"], history_actions, f"Step {step_id}: ").rstrip("\n"),
+                    "history_action": f"Previous Action:\n{previous_actions}\nGoal:\n{step['goal']}".replace("'", ""),
+                    "next_action": f"Action Plan: {action_plans[step_id:]} ; Action Decision: {autoui_action_list[step_id]}".replace("'", "")
+                })
+
+        utils.colorful_print("--- Num of total step: " + str(len(steps)), "green")
+        print(f"--- example\n{steps[:3]}")
+        utils.write_json(steps, self.ann_wpath)
+
+
 def combine_level(ann):
     if ann["rating"] == 3:
         ann["rating"] = 2
@@ -111,6 +163,7 @@ def combine_level(ann):
         pass
 
     return ann
+
 
 def post_precess_label_data(rpath, version):
     # todo 对训练数据做数据均衡
@@ -181,7 +234,7 @@ def post_precess_label_data(rpath, version):
     utils.write_json(val_anns, wpath=rpath.split(".")[0] + f"_post_{version}_val.json")
     
 
-# aitw_data = AITW(split="train", parts=["general", "webshopping", "install", "googleapps"], date="1022")
-# aitw_data.get_label_data()
+aitw_data = AITW(split="val", parts=["general"], date="1201")
+aitw_data.get_rl_data()
 
-post_precess_label_data(rpath="data/aitw_anns/1102/aitw_train_label_v5.jsonl", version="v2")
+# post_precess_label_data(rpath="data/aitw_anns/1102/aitw_train_label_v5.jsonl", version="v1")

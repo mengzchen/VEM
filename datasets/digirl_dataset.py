@@ -19,42 +19,40 @@ class ReplayBuffer:
         self.current_size = 0   
         self.batch_size = batch_size
 
-        """
-        observations
-            Previous Actions: []
-            Goal: str
-        actions
-            Action Plan: []
-            Action Decision: str
-        """
-        self.observations = None
-        self.actions = None
-        self.image_features = None
+        self.image_paths = None
+        self.critic_inputs = None
+        self.history_actions = None
+        self.next_actions = None
 
     def sample(self, batch_size=None):
         rand_indices = np.random.randint(0, self.current_size, size=batch_size) % self.max_size
         return {
-            "observation": self.observations[rand_indices],
-            "action": self.actions[rand_indices],
-            "image_features": self.image_features[rand_indices]
+            "image_paths": self.image_paths[rand_indices],
+            "critic_inputs": self.critic_inputs[rand_indices],
+            "history_actions": self.history_actions[rand_indices],
+            "next_actions": self.next_actions[rand_indices]
         }
 
     def __len__(self):
-        return self.size
+        return self.current_size
 
     def insert(
         self,
-        observation, 
-        action,
-        image_features
+        image_path,
+        critic_input,
+        history_action,
+        next_action,
+        **kwargs
     ):
-        if self.observations is None:
-            self.observations = np.array([''] * self.max_size, dtype='object')
-            self.actions = np.array([''] * self.max_size, dtype='object')
-            self.image_features = np.empty((self.max_size, *image_features.shape), dtype=image_features.dtype)
+        if self.image_paths is None:
+            self.image_paths = np.array([''] * self.max_size, dtype="object")
+            self.critic_inputs = np.array([''] * self.max_size, dtype="object")
+            self.history_actions = np.array([''] * self.max_size, dtype="object")
+            self.next_actions = np.array([''] * self.max_size, dtype="object")
 
-        self.observations[self.size % self.max_size] = observation 
-        self.image_features[self.size % self.max_size] = image_features
-        self.actions[self.size % self.max_size] = action
+        self.image_paths[self.current_size % self.max_size] = image_path
+        self.critic_inputs[self.current_size % self.max_size] = critic_input
+        self.history_actions[self.current_size % self.max_size] = history_action
+        self.next_actions[self.current_size % self.max_size] = next_action
 
-        self.size += 1
+        self.current_size += 1

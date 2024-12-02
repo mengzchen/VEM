@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #SBATCH -A berzelius-2024-341
-#SBATCH -t 0-3:0:0
+#SBATCH -t 0-24:0:0
 #SBATCH --gres gpu:1
 #SBATCH --mail-type "BEGIN,END,FAIL"
 #SBATCH --mail-user "v-zhengjiani@microsoft.com"
-#SBATCH --output logs/debug.log
-#SBATCH --error logs/debug.log
+#SBATCH --output logs/rl_1201.log
+#SBATCH --error logs/rl_1201.log
 
 # cmd
 # i1 -A berzelius-2024-341 --gres=gpu:1  --time 3:00:00 --mail-type "BEGIN,END,FAIL" --mail-user "v-zhengjiani@microsoft.com"
@@ -19,4 +19,4 @@
 # ./azcopy ls "https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani/checkpoints$SAS" | cut -d/ -f 1 | awk '!a[$0]++'
 
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
-python3 run.py --config-path=configs/ --config-name=digirl_online
+python3 train_rl.py --config-path=configs/ --config-name=digirl_online

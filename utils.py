@@ -7,6 +7,9 @@ import cv2
 from collections import defaultdict
 import pandas as pd
 import yaml
+import matplotlib.pyplot as plt
+import os
+import math
 
 
 def read_json(rpath: str):
@@ -116,3 +119,52 @@ def sample_data(rpath, wpath):
     # sample_anns = random.sample(anns, 100)
     write_to_excel(sample_anns, wpath)
 
+
+def dict_mean(dict_list):
+    mean_dict = {}
+    if len(dict_list) > 0:
+        for key in dict_list[0].keys():
+            if "min" in key:
+                mean_dict[key] = min(d[key] for d in dict_list)
+            elif "max" in key:
+                mean_dict[key] = max(d[key] for d in dict_list)
+            else:
+                mean_dict[key] = sum(d[key] for d in dict_list) / len(dict_list)
+    return mean_dict
+
+
+def smooth(scalars: List[float]) -> List[float]:
+    if len(scalars) == 0:
+        return []
+
+    last = scalars[0]
+    smoothed = []
+    weight = 1.8 * (1 / (1 + math.exp(-0.05 * len(scalars))) - 0.5)  # a sigmoid function
+    for next_val in scalars:
+        smoothed_val = last * weight + (1 - weight) * next_val
+        smoothed.append(smoothed_val)
+        last = smoothed_val
+    return smoothed
+
+
+def plot_loss(log_dir: str, keys: List[str] = ["loss"]) -> None:
+    plt.switch_backend("agg")
+    data = read_jsonl(os.path.join(log_dir, "train_log.jsonl"))
+
+    for key in keys:
+        steps, metrics = [], []
+        for i in range(len(data)):
+            if key in data[i]:
+                steps.append(data[i]["step"])
+                metrics.append(data[i][key])
+
+        plt.figure()
+        plt.plot(steps, metrics, color="#1f77b4", alpha=0.4, label="original")
+        plt.plot(steps, smooth(metrics), color="#1f77b4", label="smoothed")
+        plt.title(f"{key} of {log_dir}")
+        plt.xlabel("step")
+        plt.ylabel(key)
+        plt.legend()
+        figure_path = os.path.join(log_dir, "training_{}.png".format(key))
+        plt.savefig(figure_path, format="png", dpi=100)
+        print("Figure saved at:", figure_path)

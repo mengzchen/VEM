@@ -1,8 +1,8 @@
 run_name: 'digirl-general-online'
-save_path: './checkpoints/digirl-general-online/'
+save_path: './checkpoints/rl-1201/'
 
 # data 
-data_path: './data/general-off2on-sft-trajectories.pt'
+data_path: './data/aitw_anns/1201/aitw_train.json'
 
 # model setting
 policy_lm: './checkpoints/Auto-UI-Base'
@@ -12,19 +12,21 @@ critic_lm: './checkpoints/qwen2vl_aitw_label_1102_v1_step_1932_merge'
 capacity: 2000  
 epochs: 5  
 batch_size: 4
-bsize: 8  
 rollout_size: 16  
 grad_accum_steps: 32
 warmup_iter: 0  
-actor_epochs: 20  
-trajectory_critic_epochs: 5
-lm_lr: 1e-4
+actor_epochs: 5 # 20
+lm_lr: 1e-6
 max_grad_norm: 0.01
 gamma: 0.5
 do_sample: True
 temperature: 1.0
 tau: 0.01 
 max_new_tokens: 128
-train_iterations: 10 # 600
-eval_iterations: 1000
-save_freq: 3
+train_iterations: 200 # 600
+eval_iterations: 10 # 1000
+save_freq: 10 # 10
+
+# evaluation
+eval_only: False
+eval_path: './data/aitw_anns/1201/aitw_val.json'
