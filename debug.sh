@@ -13,10 +13,10 @@
 
 # data
 # blob: https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus
-# SAS="?sv=2023-01-03&st=2024-11-20T01%3A58%3A04Z&se=2024-11-21T01%3A58%3A04Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-11-20T01%3A58%3A04Z&ske=2024-11-21T01%3A58%3A04Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=mWwe%2Bsz4uea69JSV%2B0JSCCQnKxx8ifFxQPoGpVV0NjA%3D"
-# ./azcopy copy "https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani/checkpoints/qwen2vl_aitw_label_1102_v1_step_1932_merge$SAS" ./ --recursive
+SAS="?sv=2023-01-03&st=2024-12-04T04%3A42%3A00Z&se=2024-12-11T04%3A42%3A00Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-12-04T04%3A42%3A00Z&ske=2024-12-11T04%3A42%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=TAbL29g1ftjcByVb1c6fvm0xA3ie7860UtasRQ91iuc%3D"
+./azcopy copy "https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani$SAS" ./ --recursive
 # ./azcopy remove "https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani/ufo_images$SAS" --recursive
 # ./azcopy ls "https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani/checkpoints$SAS" | cut -d/ -f 1 | awk '!a[$0]++'
 
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
-python3 train_rl.py --config-path=configs/ --config-name=digirl_online
+# python3 train_rl.py --config-path=configs/ --config-name=digirl_online
