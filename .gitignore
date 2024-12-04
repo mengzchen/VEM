@@ -6,4 +6,3 @@ LLaMA-Factory
 cloudgpt-apim-token-cache.bin
 .vscode/
 *.xlsx
-azcopy.exe
