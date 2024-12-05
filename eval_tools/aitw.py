@@ -243,7 +243,6 @@ def str_2_format(output):
 
 
 def compute_matrix(anns, position_dict):
-    
     ep2ann = {}
     for ann in anns:
         if ann["ep_id"] not in ep2ann.keys():
@@ -252,15 +251,14 @@ def compute_matrix(anns, position_dict):
 
     succ_task, task_num = 0, 0
     succ_step, step_num = 0, 0
-    for _, ann in tqdm(ep2ann.items()):
+    for _, ann in ep2ann.items():
         task_flag = True
         task_num += 1
         for step in ann:
             step_num += 1
             
-            pred = str_2_format(ast.literal_eval(pred_str))
-            
-            groundtruth = str_2_format(ast.literal_eval("{" + step["groundtruth"].split("Action Decision:")[-1].strip() + "}"))
+            pred = str_2_format(step["output"])
+            groundtruth = str_2_format(step["groundtruth"])
             position = position_dict[f"{step['ep_id']}_{step['step_id']}"]
             annot_position = np.array([position[i:i + 4] for i in range(0, len(position), 4)])
             

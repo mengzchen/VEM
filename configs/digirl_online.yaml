@@ -1,5 +1,5 @@
 run_name: 'digirl-general-online'
-save_path: './checkpoints/rl-1201/'
+save_path: './checkpoints/rl-1202'
 
 # data 
 data_path: './data/aitw_anns/1201/aitw_train.json'

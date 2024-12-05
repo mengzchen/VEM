@@ -2,6 +2,28 @@ from PIL import Image
 
 import utils
 
+import enum
+
+
+class ActionType(enum.IntEnum):
+    UNUSED_0 = 0
+    UNUSED_1 = 1
+    UNUSED_2 = 2
+    UNUSED_8 = 8
+    UNUSED_9 = 9
+
+    TYPE = 3
+    DUAL_POINT = 4
+    PRESS_BACK = 5
+    PRESS_HOME = 6
+    PRESS_ENTER = 7
+
+    STATUS_TASK_COMPLETE = 10
+    STATUS_TASK_IMPOSSIBLE = 11
+
+action_type_dict = {item.value: item.name for item in ActionType}
+
+
 def action2step(ann, dataset_name, image_rpath):
     if dataset_name == "mind2web":
         action_type = ann["operation"]["original_op"]
@@ -47,16 +69,10 @@ def action2step(ann, dataset_name, image_rpath):
             else: 
                 action = "action_type is {}.".format(action_type_text)
         elif action_type == 3:
-            action = "action_type is {}, typed_text is {}.".format(action_type_text, step["type_text"])
+            action = "action_type is {}, typed_text is {}.".format(action_type_text, ann["type_text"])
         else:
             action = "action_type is {}.".format(action_type_text)
 
         return action, image_rpath
     else:
         utils.colorful_print(f"not action2step for {dataset_name}", "red")
-
-class GUIDataset:
-    def __init__(self) -> None:
-        pass
-
-    
