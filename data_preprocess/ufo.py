@@ -45,7 +45,7 @@ class UFO:
                 
                 # add user screenshot
                 conversations = [
-                    {"role": "user", "content": f"{step["input"]["system"]}\n{step["input"]["user"]}\n<Current Screenshot>: <image>"},
+                    {"role": "user", "content": f"{step['input']['system']}\n{step['input']['user']}\n<Current Screenshot>: <image>"},
                     {"role": "assistant", "content": str(step["output"])}
                 ]
                 

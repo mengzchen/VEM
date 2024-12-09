@@ -1,6 +1,5 @@
 import json
 from typing import List
-import click
 import openpyxl
 from openpyxl.drawing.image import Image
 import cv2
@@ -37,10 +36,6 @@ def add_visilize2screenshot(image_rpath, action_type, action_params):
         return image_wpath
     else:
         pass
-    
-
-def colorful_print(string: str, *args, **kwargs) -> None:
-    print(click.style(string, *args, **kwargs))
 
 
 def write_to_excel(anns, wpath):

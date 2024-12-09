@@ -480,5 +480,28 @@ def _test_call(**kwargs: Any):
     print(response.choices[0].message)
 
 
+def get_message(text_list, image_path_list) -> list:
+    if len(image_path_list) != 0:
+        assert len(text_list) == len(image_path_list)
+        content = []
+        for (text, image) in zip(text_list, image_path_list):
+            image = encode_image(image)
+            content.append({"type": "text", "text": text})
+            content.append({"type": "image_url", "image_url": {"url": image}})
+        message = [{
+            "role": "user",
+            "content": content
+        }]
+    else:
+        message = [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": text_list},
+            ]
+        }]
+
+    return message
+
+
 if __name__ == "__main__":
     _test_call(use_broker_login=True)

@@ -32,7 +32,6 @@ class DigiRLTrainer():
         tau: float = 0.1,
         epochs: int = 3,
         max_grad_norm: float=0.01,
-        actor_epochs: int = 3,
     ):
         super().__init__()
         self.agent = agent
@@ -43,7 +42,6 @@ class DigiRLTrainer():
         self.grad_accum_steps = grad_accum_steps
         self.gamma = gamma
 
-        self.actor_epochs = actor_epochs
         self.epochs = epochs
 
         self.step = 0
@@ -116,7 +114,6 @@ class DigiRLTrainer():
             image_features.append(image_feature)
         image_features = torch.stack(image_features)
 
-        # TODO next_actions => policy prediction action
         log_prob = self.agent.get_log_prob(history_actions, image_features, next_actions).sum(dim=1).flatten()
 
         pg_loss = - torch.mean(log_prob * q_values)
@@ -128,13 +125,12 @@ class DigiRLTrainer():
 
 
     def update_policy(self, replay_buffer, validation_buffer=None):
-        self.step += 1
-        action_bsize = replay_buffer.batch_size
+        if replay_buffer is not None:
+            self.step += 1
+            action_bsize = replay_buffer.batch_size
 
-        logs = []
+            logs = []
 
-        print("### updating actor")
-        for i in range(self.actor_epochs):
             data = [replay_buffer.sample(1) for _ in range(self.grad_accum_steps * action_bsize)]
 
             for d in data:
@@ -152,13 +148,15 @@ class DigiRLTrainer():
                 losses.append(loss)
                 q_values.append(q_value)
 
-            logging.info(f"epoch: {i}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
-            logs.append({"step": self.step * self.actor_epochs + i, "train loss": sum(losses) / len(losses), "train Q value": sum(q_values) / len(q_values)})
+            logging.info(f"step: {self.step}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
+            logs.append({"step": self.step, "train loss": sum(losses) / len(losses), "train Q value": sum(q_values) / len(q_values)})
 
             self.accelerator.clip_grad_norm_(self.agent.parameters(), self.max_grad_norm)
             self.lm_optimizer.step()
 
         if validation_buffer is not None:
+            action_bsize = validation_buffer.batch_size
+            logs = []
             data = [validation_buffer.sample(1) for _ in range(self.grad_accum_steps * action_bsize)]
 
             for d in data:
@@ -174,9 +172,9 @@ class DigiRLTrainer():
                     loss, q_value = self.actor_loss(**batch, validation=True)
                     losses.append(loss)
                     q_values.append(q_value)
-                logging.info(f"[val] epoch: {i}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
+                logging.info(f"[val] step: {self.step}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
 
-            logs.append({"step": self.step * self.actor_epochs + i, "val loss": sum(losses) / len(losses), "val Q value": sum(q_values) / len(q_values)})
+            logs.append({"step": self.step, "val loss": sum(losses) / len(losses), "val Q value": sum(q_values) / len(q_values)})
 
         return logs
 
@@ -190,7 +188,7 @@ class DigiRLTrainer():
         dataloader = self.accelerator.prepare(dataloader)
 
         results = []
-        for batch in tqdm(dataloader):
+        for batch in dataloader:
             ep_ids, step_ids = batch["ep_id"], batch["step_id"]
             texts, groundtruths = batch["history_action"], batch["next_action"]
             image_paths = batch["image_path"]
@@ -201,7 +199,7 @@ class DigiRLTrainer():
             image_features = torch.stack(image_features)
 
             outputs = self.agent.get_action(texts, image_features)
-            print(outputs)
+
             for (output, groundtruth, ep_id, step_id) in zip(outputs, groundtruths, ep_ids, step_ids):
                 results.append({"output": output, "groundtruth": groundtruth, "ep_id": ep_id, "step_id": step_id.item()})
 
@@ -221,17 +219,13 @@ def onpolicy_train_loop(
     accelerator,
     data_path: str = None,
     batch_size: int = 2,
-    capacity: int = 500000,
-    train_iterations: int = 10,
-    epochs:int = 3,
+    epochs: int = 3,
     grad_accum_steps: int = 1,
     lm_lr: float = 1e-5,
     gamma: float = 0.9,
     tau: float = 0.1,
-    actor_epochs: int = 3,
     max_grad_norm: float = 0.01,
     save_path: str = None,
-    save_freq: int = 25,
     **kwargs
 ):
     trainer = DigiRLTrainer(
@@ -242,7 +236,6 @@ def onpolicy_train_loop(
         gamma=gamma,
         tau=tau,
         epochs=epochs,
-        actor_epochs=actor_epochs,
         grad_accum_steps=grad_accum_steps,
         max_grad_norm=max_grad_norm
     )
@@ -255,67 +248,67 @@ def onpolicy_train_loop(
 
     print(f"### all trajectories: {len(all_trajectories)}")
 
-    progress_bar = tqdm(total=train_iterations)
     logs = []
-    for i_step in range(train_iterations):
-        # sample data for one iteration from buffer, num = actor_epochs * batch_size * grad_accum_steps
-        sample_num = actor_epochs * batch_size * grad_accum_steps
-        sample_trajectories = random.sample(all_trajectories, sample_num)
+    for epoch in range(epochs):
+        print(f"### epoch {epoch}")
+        sample_num = batch_size * grad_accum_steps
+        for train_step in range(len(all_trajectories) // sample_num):
+            sample_trajectories = all_trajectories[train_step * sample_num: (train_step + 1) * sample_num]
 
-        # add predict action to model, multi-GPU gather
-        results = trainer.infer(sample_trajectories, batch_size)
+            # add predict action to model, multi-GPU gather
+            results = trainer.infer(sample_trajectories, batch_size)
 
-        # use results to update sample_trajectories
-        assert len(results) == len(sample_trajectories), f"{len(results)} != {sample_num}"
-        for i in range(len(results)):
-            try:
-                actor_output = str_2_format(results[i]["output"])
+            for i in range(len(results)):
+                try:
+                    actor_output = str_2_format(results[i]["output"])
 
-                if actor_output["action_type"] == "DUAL_POINT":
-                    touch_point = actor_output["touch_point"]
-                    lift_point = actor_output["lift_point"]
-                    click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
+                    if actor_output["action_type"] == "DUAL_POINT":
+                        touch_point = actor_output["touch_point"]
+                        lift_point = actor_output["lift_point"]
+                        click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
 
-                    click_point = [f"{item:.2f}" for item in click_point]
-                    click_point = "({},{})".format(click_point[0], click_point[1])
-                    action = f"action_type is click, click_point is {click_point}."
-                elif actor_output["action_type"] == "TYPE":
-                    action = f"action_type is type, click_point is {actor_output['typed_text']}."
-                else:
-                    # TODO the press enter is not in critic model
-                    action = "action_type is {}.".format(actor_output["action_type"].replace("_", " ").lower())
-            except:
-                print(F"!!! error parse: {results[i]['output']}")
-                action = "action_type is press home"
-            sample_trajectories[i]["critic_input"] += action
+                        sample_trajectories[i]["image_path"] = utils.add_visilize2screenshot(
+                            image_rpath=sample_trajectories[i]["image_path"],
+                            action_type="click",
+                            action_params=click_point
+                        )
+
+                        click_point = [f"{item:.2f}" for item in click_point]
+                        click_point = "({},{})".format(click_point[0], click_point[1])
+                        action = f"action_type is click, click_point is {click_point}."
+                    elif actor_output["action_type"] == "TYPE":
+                        action = f"action_type is type, click_point is {actor_output['typed_text']}."
+                    else:
+                        # TODO the press enter is not in critic model
+                        action = "action_type is {}.".format(actor_output["action_type"].replace("_", " ").lower())
+                except:
+                    print(F"!!! error parse: {results[i]['output']}")
+                    action = "action_type is "
+                sample_trajectories[i]["critic_input"] += action
 
             sample_trajectories[i]["next_action"] = results[i]["output"]
 
-        # run policy infer to get the predict action
-        train_trajectories = sample_trajectories[:int(sample_num * 0.95)]
-        val_trajectories = sample_trajectories[int(sample_num * 0.95):]
-        replay_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(train_trajectories))
-        validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
+            # run policy infer to get the predict action
+            train_trajectories = sample_trajectories[:int(sample_num * 0.95)]
+            val_trajectories = sample_trajectories[int(sample_num * 0.95):]
+            replay_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(train_trajectories))
+            validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
 
-        for d in train_trajectories:
-            replay_buffer.insert(**d)
-        for d in val_trajectories:
-            validation_buffer.insert(**d)
+            for d in train_trajectories:
+                replay_buffer.insert(**d)
+            for d in val_trajectories:
+                validation_buffer.insert(**d)
 
-        print("### training policy")
-
-        logs.extend(trainer.update_policy(replay_buffer, validation_buffer))
-
-        if i_step % save_freq == 0 and save_path is not None and accelerator.is_main_process:
-            print("### saving")
-            if not os.path.exists(os.path.join(save_path, f"step_{i_step}")):
-                os.mkdir(os.path.join(save_path, f"step_{i_step}"))
-            trainer.save(os.path.join(save_path, f"step_{i_step}"))
-            utils.write_jsonl(logs, os.path.join(save_path, f"step_{i_step}", "train_log.jsonl"))
-            utils.plot_loss(os.path.join(save_path, f"step_{i_step}"), keys=["train loss", "train Q value", "val loss", "val Q value"])
+            logs.extend(trainer.update_policy(replay_buffer, None))
+        logs.extend(trainer.update_policy(None, validation_buffer))
 
         if accelerator.is_main_process:
-            progress_bar.update(1)
+            print("### saving")
+            if not os.path.exists(os.path.join(save_path, f"epoch_{epoch}")):
+                os.mkdir(os.path.join(save_path, f"epoch_{epoch}"))
+            trainer.save(os.path.join(save_path, f"epoch_{epoch}"))
+            utils.write_jsonl(logs, os.path.join(save_path, f"epoch_{epoch}", "train_log.jsonl"))
+            utils.plot_loss(os.path.join(save_path, f"epoch_{epoch}"), keys=["train loss", "train Q value", "val loss", "val Q value"])
 
 
 def eval_loop(
@@ -326,37 +319,35 @@ def eval_loop(
     batch_size: int = 2,
     **kwargs
 ):
-    result_wpath = os.path.join(save_path, "results.jsonl")
-    position_anns = utils.read_json("data/aitw_anns/val_position/aitw_val.json")
+    model_name = "_".join(save_path.split("/")[-2:]).replace("checkpoints_", "")
+    result_wpath = os.path.join("checkpoints/results", f"{model_name}_results.jsonl")
+
+    position_anns = utils.read_json("data/aitw_anns/eval/aitw_val.json")
     position_dict = {}
     for ann in position_anns:
         position_dict[f"{ann['ep_id']}_{ann['step_id']}"] = ann["annot_position"]
 
-    if os.path.exists(result_wpath):
-        print("Baseline AutoUI:")
-        baseline_anns = utils.read_jsonl("./checkpoints/Auto-UI-Base/results.jsonl")
-        compute_matrix(baseline_anns, position_dict)
-        print(f"{' '.join(save_path.split('/')[-2:])}: ")
-        anns = utils.read_jsonl(result_wpath)
-        compute_matrix(anns, position_dict)
-        return
+    if not os.path.exists(result_wpath):
+        trainer = DigiRLTrainer(
+            agent=agent,
+            accelerator=accelerator,
+            tokenizer=agent.tokenizer
+        )
 
-    trainer = DigiRLTrainer(
-        agent=agent,
-        accelerator=accelerator,
-        tokenizer=agent.tokenizer
-    )
+        assert os.path.exists(save_path)
+        print(f"### Loading from previous checkpoint: {save_path}")
+        trainer.load(save_path)
 
-    # load ckpt
-    assert os.path.exists(save_path)
-    print(f"### Loading from previous checkpoint: {save_path}")
-    trainer.load(save_path)
+        trajectories = utils.read_json(eval_path)
+        results = trainer.infer(trajectories, batch_size)
 
-    trajectories = utils.read_json(eval_path)
-    results = trainer.infer(trajectories, batch_size)
+        utils.write_jsonl(results, result_wpath)
 
-    utils.write_jsonl(results, result_wpath)
-    compute_matrix(results, position_dict)
+    for file in os.listdir("checkpoints/results"):
+        result_wpath = os.path.join("checkpoints/results", file)
+        results = utils.read_jsonl(result_wpath)
+        print(f"================{result_wpath.split('/')[2]}================")
+        compute_matrix(results, position_dict)
 
 
 
@@ -365,8 +356,13 @@ def main(config: "DictConfig"):
     print(OmegaConf.to_yaml(config))
 
     ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
-    accelerator = Accelerator(InitProcessGroupKwargs(timeout=timedelta(minutes=40)), kwargs_handlers=[ddp_kwargs], project_dir=config.save_path)
+    accelerator = Accelerator(
+        InitProcessGroupKwargs(timeout=timedelta(minutes=40)),
+        kwargs_handlers=[ddp_kwargs],
+        project_dir=config.save_path
+    )
     device = accelerator.device
+    print(f"### device: {device}")
 
     print("### load AutoUIAgent")
 
