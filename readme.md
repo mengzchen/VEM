@@ -10,4 +10,6 @@ pip install -e ".[torch,metrics]"
 llamafactory-cli train configs/qwen2_vl_lora.yaml
 llamafactory-cli export configs/qwen2vl_lora_merge.yaml
 
+azcopy ls "$blob_dir/$SAS" | cut -d/ -f 1 | awk '!a[$0]++'
+
 git clone https://fangkaiyang@dev.azure.com/fangkaiyang/VLAM/_git/VLAM

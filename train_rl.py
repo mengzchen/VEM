@@ -297,7 +297,7 @@ def eval_loop(
     # TODO change the name of result_wpath
     result_wpath = os.path.join("checkpoints/results", f"{model_name}_val_results.jsonl")
 
-    position_anns = utils.read_json("data/aitw_anns/eval/aitw_val.json")
+    position_anns = utils.read_json("data/aitw_anns/aitw_position_val.json")
     position_dict = {}
     for ann in position_anns:
         position_dict[f"{ann['ep_id']}_{ann['step_id']}"] = ann["annot_position"]

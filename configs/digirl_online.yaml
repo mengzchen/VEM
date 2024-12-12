@@ -25,4 +25,4 @@ max_new_tokens: 128
 
 # evaluation
 eval_only: False
-eval_path: './data/aitw_anns/1201/aitw_val.json'
+eval_path: './data/aitw_anns/1201/aitw_position_val.json'
