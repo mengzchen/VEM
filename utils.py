@@ -88,7 +88,7 @@ def read_jsonl(rpath):
                 json_obj = json.loads(line)
                 data.append(json_obj)
             except:
-                colorful_print(f"Error decoding JSON on line: {idx}", "red")
+                print(f"Error decoding JSON on line: {idx}")
     return data
 
 

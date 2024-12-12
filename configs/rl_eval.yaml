@@ -1,5 +1,5 @@
 run_name: 'digirl-general-online'
-save_path: './checkpoints/rl-1202/step_20'
+save_path: './checkpoints/Auto-UI-Base'
 
 # data 
 data_path: './data/aitw_anns/1201/aitw_train.json'
@@ -26,4 +26,4 @@ max_new_tokens: 128
 
 # evaluation
 eval_only: True
-eval_path: './data/aitw_anns/1201/aitw_val.json'
+eval_path: './data/aitw_anns/1201/aitw_train_sample.json'

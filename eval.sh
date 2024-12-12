@@ -36,4 +36,4 @@ SAS="?sv=2023-01-03&st=2024-12-04T04%3A42%3A00Z&se=2024-12-11T04%3A42%3A00Z&skoi
 # sudo apt-get install libglib2.0-0
 
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
-CUDA_VISIBLE_DEVICES=3 python3 train_rl.py --config-path=configs/ --config-name=rl_eval
+CUDA_VISIBLE_DEVICES=0 python3 train_rl.py --config-path=configs/ --config-name=rl_eval

@@ -19,9 +19,10 @@ from eval_tools.aitw import compute_matrix
 import logging
 import random
 from eval_tools.aitw import str_2_format
+from data_preprocess.action_transfer import update_trajectory
 
 
-class DigiRLTrainer():
+class DigiRLTrainer:
     def __init__(self,
         agent,
         accelerator,
@@ -124,71 +125,52 @@ class DigiRLTrainer():
         return pg_loss.detach().cpu().item(), torch.mean(q_values).detach().cpu().item()
 
 
-    def update_policy(self, replay_buffer, validation_buffer=None):
-        if replay_buffer is not None:
-            self.step += 1
-            action_bsize = replay_buffer.batch_size
+    def update_policy(self, buffer, is_validation, batch_size):
+        logs = []
 
-            logs = []
+        self.step += 1
+        data = [buffer.sample(1) for _ in range(self.grad_accum_steps * batch_size)]
 
-            data = [replay_buffer.sample(1) for _ in range(self.grad_accum_steps * action_bsize)]
+        # TODO no need for buffer
+        for d in data:
+            for k, v in d.items():
+                d[k] = v[0]
 
-            for d in data:
-                for k, v in d.items():
-                    d[k] = v[0]
+        dataloader = self.accelerator.prepare(DataLoader(DummyDataset(data), batch_size=batch_size, shuffle=False))
 
-            dataloader = DataLoader(DummyDataset(data), batch_size=action_bsize, shuffle=False)
+        self.lm_optimizer.zero_grad()
 
-            dataloader = self.accelerator.prepare(dataloader)
-            self.lm_optimizer.zero_grad()
-
-            losses, q_values = [], []
+        losses, q_values = [], []
+        if is_validation:
+            with torch.no_grad():
+                for batch in dataloader:
+                    loss, q_value = self.actor_loss(**batch)
+                    losses.append(loss)
+                    q_values.append(q_value)
+            logging.info(f"[val] step: {self.step}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
+            logs.append({"step": self.step, "val loss": sum(losses) / len(losses), "val Q value": sum(q_values) / len(q_values)})
+        else:
             for batch in dataloader:
                 loss, q_value = self.actor_loss(**batch)
                 losses.append(loss)
                 q_values.append(q_value)
-
             logging.info(f"step: {self.step}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
             logs.append({"step": self.step, "train loss": sum(losses) / len(losses), "train Q value": sum(q_values) / len(q_values)})
 
             self.accelerator.clip_grad_norm_(self.agent.parameters(), self.max_grad_norm)
             self.lm_optimizer.step()
 
-        if validation_buffer is not None:
-            action_bsize = validation_buffer.batch_size
-            logs = []
-            data = [validation_buffer.sample(1) for _ in range(self.grad_accum_steps * action_bsize)]
-
-            for d in data:
-                for k,v in d.items():
-                    d[k] = v[0]
-
-            dataloader = DataLoader(DummyDataset(data), batch_size=action_bsize, shuffle=False)
-            dataloader = self.accelerator.prepare(dataloader)
-
-            with torch.no_grad():
-                losses, q_values = [], []
-                for batch in dataloader:
-                    loss, q_value = self.actor_loss(**batch, validation=True)
-                    losses.append(loss)
-                    q_values.append(q_value)
-                logging.info(f"[val] step: {self.step}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
-
-            logs.append({"step": self.step, "val loss": sum(losses) / len(losses), "val Q value": sum(q_values) / len(q_values)})
-
         return logs
 
 
-    def infer(self, data, batch_size):
+    def infer(self, data, batch_size, add_q_value):
         dtype = self.accelerator.unwrap_model(self.agent.model).dtype
         device = self.accelerator.unwrap_model(self.agent.model).device
-
         dataloader = DataLoader(DummyDataset(data), batch_size=batch_size, shuffle=False)
-
         dataloader = self.accelerator.prepare(dataloader)
 
         results = []
-        for batch in dataloader:
+        for batch in tqdm(dataloader):
             ep_ids, step_ids = batch["ep_id"], batch["step_id"]
             texts, groundtruths = batch["history_action"], batch["next_action"]
             image_paths = batch["image_path"]
@@ -202,6 +184,28 @@ class DigiRLTrainer():
 
             for (output, groundtruth, ep_id, step_id) in zip(outputs, groundtruths, ep_ids, step_ids):
                 results.append({"output": output, "groundtruth": groundtruth, "ep_id": ep_id, "step_id": step_id.item()})
+
+        if add_q_value:
+            q_values = []
+            data = update_trajectory(data, results)
+            buffer = ReplayBuffer(batch_size=batch_size, capacity=len(data))
+
+            for d in data:
+                buffer.insert(**d)
+            data = [buffer.sample(1) for _ in range(len(data))]
+
+            for d in data:
+                for k, v in d.items():
+                    d[k] = v[0]
+
+            dataloader = DataLoader(DummyDataset(data), batch_size=batch_size, shuffle=False)
+            dataloader = self.accelerator.prepare(dataloader)
+            with torch.no_grad():
+                for batch in tqdm(dataloader):
+                    loss, q_value = self.actor_loss(**batch, validation=True)
+                    q_values.append(q_value)
+
+            return results, sum(q_values) / len(q_values)
 
         return results
 
@@ -240,7 +244,6 @@ def onpolicy_train_loop(
         max_grad_norm=max_grad_norm
     )
 
-    # prepare data
     all_trajectories = utils.read_json(data_path)
 
     agent.prepare()
@@ -249,58 +252,29 @@ def onpolicy_train_loop(
     print(f"### all trajectories: {len(all_trajectories)}")
 
     logs = []
+    # split val and train
+    train_trajectories = all_trajectories[:int(len(all_trajectories) * 0.95)]
+    val_trajectories = all_trajectories[int(len(all_trajectories) * 0.95):]
+    random.shuffle(train_trajectories)
+    sample_num = batch_size * grad_accum_steps
     for epoch in range(epochs):
         print(f"### epoch {epoch}")
-        sample_num = batch_size * grad_accum_steps
-        for train_step in range(len(all_trajectories) // sample_num):
-            sample_trajectories = all_trajectories[train_step * sample_num: (train_step + 1) * sample_num]
+        for train_step in range(len(train_trajectories) // sample_num):
+            sample_trajectories = train_trajectories[train_step * sample_num: (train_step + 1) * sample_num]
 
-            # add predict action to model, multi-GPU gather
-            results = trainer.infer(sample_trajectories, batch_size)
+            results = trainer.infer(sample_trajectories, batch_size, add_q_value=False)
+            sample_trajectories = update_trajectory(sample_trajectories, results)
+            replay_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(sample_trajectories))
 
-            for i in range(len(results)):
-                try:
-                    actor_output = str_2_format(results[i]["output"])
-
-                    if actor_output["action_type"] == "DUAL_POINT":
-                        touch_point = actor_output["touch_point"]
-                        lift_point = actor_output["lift_point"]
-                        click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
-
-                        sample_trajectories[i]["image_path"] = utils.add_visilize2screenshot(
-                            image_rpath=sample_trajectories[i]["image_path"],
-                            action_type="click",
-                            action_params=click_point
-                        )
-
-                        click_point = [f"{item:.2f}" for item in click_point]
-                        click_point = "({},{})".format(click_point[0], click_point[1])
-                        action = f"action_type is click, click_point is {click_point}."
-                    elif actor_output["action_type"] == "TYPE":
-                        action = f"action_type is type, click_point is {actor_output['typed_text']}."
-                    else:
-                        # TODO the press enter is not in critic model
-                        action = "action_type is {}.".format(actor_output["action_type"].replace("_", " ").lower())
-                except:
-                    print(F"!!! error parse: {results[i]['output']}")
-                    action = "action_type is "
-                sample_trajectories[i]["critic_input"] += action
-
-            sample_trajectories[i]["next_action"] = results[i]["output"]
-
-            # run policy infer to get the predict action
-            train_trajectories = sample_trajectories[:int(sample_num * 0.95)]
-            val_trajectories = sample_trajectories[int(sample_num * 0.95):]
-            replay_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(train_trajectories))
-            validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
-
-            for d in train_trajectories:
+            for d in sample_trajectories:
                 replay_buffer.insert(**d)
-            for d in val_trajectories:
-                validation_buffer.insert(**d)
 
-            logs.extend(trainer.update_policy(replay_buffer, None))
-        logs.extend(trainer.update_policy(None, validation_buffer))
+            logs.extend(trainer.update_policy(replay_buffer, is_validation=False, batch_size=batch_size))
+
+        validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
+        for d in val_trajectories:
+            validation_buffer.insert(**d)
+        logs.extend(trainer.update_policy(validation_buffer, is_validation=True, batch_size=batch_size))
 
         if accelerator.is_main_process:
             print("### saving")
@@ -320,7 +294,8 @@ def eval_loop(
     **kwargs
 ):
     model_name = "_".join(save_path.split("/")[-2:]).replace("checkpoints_", "")
-    result_wpath = os.path.join("checkpoints/results", f"{model_name}_results.jsonl")
+    # TODO change the name of result_wpath
+    result_wpath = os.path.join("checkpoints/results", f"{model_name}_val_results.jsonl")
 
     position_anns = utils.read_json("data/aitw_anns/eval/aitw_val.json")
     position_dict = {}
@@ -339,15 +314,14 @@ def eval_loop(
         trainer.load(save_path)
 
         trajectories = utils.read_json(eval_path)
-        results = trainer.infer(trajectories, batch_size)
+        _, q_values = trainer.infer(trajectories, batch_size, add_q_value=True)
+        print(f"### {model_name} q_values: {q_values}")
 
-        utils.write_jsonl(results, result_wpath)
-
-    for file in os.listdir("checkpoints/results"):
-        result_wpath = os.path.join("checkpoints/results", file)
-        results = utils.read_jsonl(result_wpath)
-        print(f"================{result_wpath.split('/')[2]}================")
-        compute_matrix(results, position_dict)
+    # for file in os.listdir("checkpoints/results"):
+    #     result_wpath = os.path.join("checkpoints/results", file)
+    #     results = utils.read_jsonl(result_wpath)
+    #     print(f"================{result_wpath.split('/')[2]}================")
+    #     compute_matrix(results, position_dict)
 
 
 
@@ -362,14 +336,18 @@ def main(config: "DictConfig"):
         project_dir=config.save_path
     )
     device = accelerator.device
-    print(f"### device: {device}")
 
     print("### load AutoUIAgent")
 
-    agent = AutoUIAgent(device=device, accelerator=accelerator,
-                        temperature=config.temperature, do_sample=config.do_sample,
-                        policy_lm=config.policy_lm, critic_lm=config.critic_lm,
-                        max_new_tokens=config.max_new_tokens)
+    agent = AutoUIAgent(
+        device=device,
+        accelerator=accelerator,
+        temperature=config.temperature,
+        do_sample=config.do_sample,
+        policy_lm=config.policy_lm,
+        critic_lm=config.critic_lm,
+        max_new_tokens=config.max_new_tokens
+    )
 
     if config.eval_only:
         eval_loop(

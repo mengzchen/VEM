@@ -51,7 +51,7 @@ class GPTScorer:
         return response.choices[0].message.content
 
 
-ann_rpath = "data/aitw_anns/1205/aitw_train.json"
-ann_wpath = f"data/aitw_anns/1205/aitw_train_positive.jsonl"
+ann_rpath = "data/aitw_anns/1209/aitw_val_label.json"
+ann_wpath = "data/aitw_anns/1209/aitw_val_score.jsonl"
 GPTScorer().get_label_anns(ann_rpath=ann_rpath, ann_wpath=ann_wpath)
 

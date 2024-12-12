@@ -236,8 +236,7 @@ def str_2_format(output):
       action["touch_point"] = [action["touch_point"][1], action["touch_point"][0]]
       action["lift_point"] = [action["lift_point"][1], action["lift_point"][0]]
     except:
-      print(F"!!! error parse: {output}")
-      action = {"action_type": "PRESS HOME", "touch_point": [-1.0, -1.0], "lift_point": [-1.0, -1.0], "typed_text": ""}
+      action = {"action_type": "", "touch_point": [-1.0, -1.0], "lift_point": [-1.0, -1.0], "typed_text": ""}
     
     return action
 
@@ -251,6 +250,7 @@ def compute_matrix(anns, position_dict):
 
     succ_task, task_num = 0, 0
     succ_step, step_num = 0, 0
+    q_value = 0
     for _, ann in ep2ann.items():
         task_flag = True
         task_num += 1

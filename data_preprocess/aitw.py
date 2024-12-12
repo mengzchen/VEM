@@ -21,11 +21,12 @@ class AITW:
         self.parts = parts
         if not os.path.exists(f"data/aitw_anns/{date}"):
             os.mkdir(f"data/aitw_anns/{date}")
-        self.ann_wpath = f"data/aitw_anns/{date}/aitw_{split}.json"
+        self.date = date
     
 
     def get_label_data(self):
         all_anns = utils.read_json(self.ann_rpath)
+        ann_wpath = f"data/aitw_anns/{self.date}/aitw_{self.split}_label.json"
 
         anns = []
         for part in self.parts:
@@ -35,19 +36,18 @@ class AITW:
 
         steps = []
         for episode in tqdm(anns):
-            action_list = []
-            image_rpath_list = []
+            action_list, image_path_list = [], []
             for step_id, step in enumerate(episode):
                 image_filename = f"{step['img_filename']}.png"
-                image_rpath = os.path.join(self.image_dir, image_filename)
-                if not os.path.exists(image_rpath):
-                    print(f"{image_rpath} image not found")
+                image_path = os.path.join(self.image_dir, image_filename)
+                if not os.path.exists(image_path):
+                    print(f"{image_path} image not found")
                     continue
 
-                action_step, image_rpath = action2step(step, "aitw", image_rpath)
-                
-                action_list.append(f"step {step_id}: {action_step} <image>")
-                image_rpath_list.append(image_rpath)
+                action_step, image_path = action2step(step, "aitw", image_path, add_visual=True)
+                action_step = f"\"action_type\": \"{action_type_dict[step['action_type_text']]}\", \"touch_point\": \"{step['touch']}\", \"lift_point\": \"{step['lift']}\", \"typed_text\": \"{step['type_text']}\" <image>"
+                action_list.append(f"step {step_id}: {action_step}")
+                image_path_list.append(image_path)
             
             for step_id, step in enumerate(episode):
                 steps.append({
@@ -55,14 +55,14 @@ class AITW:
                     "step_id": step_id,
                     "task": step["goal"], 
                     "action_list": action_list,
-                    "image_path_list": image_rpath_list,
+                    "image_path_list": image_path_list,
                     "action": action_list[step_id],
-                    "image_path": image_rpath_list[step_id]
+                    "image_path": image_path_list[step_id]
                 })
 
+        print(f"--- example\n{steps[:2]}")
+        utils.write_json(steps, ann_wpath)
         print("--- Num of total step: " + str(len(steps)))
-        print(f"--- example\n{steps[:3]}")
-        utils.write_json(steps, self.ann_wpath)
 
 
     def get_negative_label_data(self):
@@ -118,33 +118,18 @@ class AITW:
         utils.write_json(steps, self.ann_wpath)
 
 
-def combine_level(ann):
-    if ann["rating"] == 3:
-        ann["rating"] = 2
-        ann["response"] = ann["response"].replace("Rating: 3", "Rating: 2")
-    elif ann["rating"] == 4:
-        ann["rating"] = 3
-        ann["response"] = ann["response"].replace("Rating: 4", "Rating: 3")
-    else:
-        pass
-
-    return ann
-
-
-def post_precess_label_data(rpath, version):
+# aitw use general critic => webshopping cross-task critic
+def post_precess_label_data(rpath):
     anns = utils.read_jsonl(rpath)
     
     train_anns = []
-    train_type_count = {1: 0, 2: 0, 3: 0, 4: 0}
-    val_anns = []
-    val_type_count = {1: 0, 2: 0, 3: 0, 4: 0}
+    type_count = {1: 0, 2: 0, 3: 0}
 
     for ann in anns:
-        ann = combine_level(ann)
         history_actions = "\n".join(ann["action_list"][:ann["step_id"]]).replace("<image>", "")
 
         conversations = [
-            {"role": "user", "content": system_prompt.format(ann["task"], history_actions, ann["action"])},
+            {"role": "user", "content": prompt_critic_input.format(ann["task"], history_actions, ann["action"].replace("<image>", ""))},
             {"role": "assistant", "content": str(ann["rating"])}
         ]
         
@@ -158,29 +143,17 @@ def post_precess_label_data(rpath, version):
             "images": [image_path_list[ann["step_id"]]],
             "rating": ann["rating"]
         }
-        if ann["rating"] not in val_type_count.keys():
-            pass
-        elif val_type_count[ann["rating"]] < 50:
-            val_anns.append(example)
-            val_type_count[ann["rating"]] += 1
-        else:
-            if ann["rating"] == 3:
-                choice = np.random.choice(3, 1)
-                if choice == 1:
-                    train_anns.append(example)
-                    train_type_count[ann["rating"]] += 1
-            else:
-                train_anns.append(example)
-                train_type_count[ann["rating"]] += 1
-    
-    print(train_type_count)
-    print(val_type_count)
 
-    utils.write_json(train_anns, wpath=rpath.split(".")[0] + f"_post_{version}.json")
-    utils.write_json(val_anns, wpath=rpath.split(".")[0] + f"_post_{version}_val.json")
+        train_anns.append(example)
+        type_count[ann["rating"]] += 1
+    
+    print(type_count)
+
+    utils.write_json(train_anns, wpath=rpath.split(".")[0].replace("_score", "") + f"_critic.json")
     
 
-aitw_data = AITW(split="val", parts=["general"], date="1201")
-aitw_data.get_rl_data()
+# aitw_data = AITW(split="val", parts=["general"], date="1209")
+# aitw_data.get_rl_data()
+# aitw_data.get_label_data()
 
-# post_precess_label_data(rpath="data/aitw_anns/1102/aitw_train_label_v5.jsonl", version="v1")
+post_precess_label_data(rpath="data/aitw_anns/1209/aitw_train_score.jsonl")

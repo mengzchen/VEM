@@ -24,6 +24,7 @@ SAS="?sv=2023-01-03&st=2024-12-04T04%3A42%3A00Z&se=2024-12-11T04%3A42%3A00Z&skoi
 #azcopy copy "$blob_dir/checkpoints/roberta-base$SAS" ./ --recursive
 #azcopy copy "$blob_dir/checkpoints/general-off2on-digirl$SAS" ./ --recursive
 #azcopy copy "$blob_dir/data$SAS" ./ --recursive
+#./azcopy copy "$blob_dir/checkpoints/rl-1209/epoch_9/$SAS" ./ --recursive
 # ./azcopy remove "https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani/data_preprocess$SAS" --recursive
 #azcopy ls "https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani/checkpoints$SAS" | cut -d/ -f 1 | awk '!a[$0]++'
 
