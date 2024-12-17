@@ -12,7 +12,7 @@ import utils
 class UFO:
     def __init__(self, dataset_name:str, split: str, date: str):
         self.dataset_name = dataset_name
-        self.image_dir = f"data/images/{dataset_name}_images"
+        self.image_dir = f"images/{dataset_name}_images"
         self.split = split
         self.train_ids = utils.read_json("data/ufo_anns/split.json")["train_ids"]
         self.test_ids = utils.read_json("data/ufo_anns/split.json")["test_ids"]

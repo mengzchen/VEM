@@ -4,7 +4,6 @@ import enum
 from eval_tools.aitw import str_2_format
 
 
-# TODO check the action type transfer
 action_type_dict = {
     "type": "TYPE",
     "click": "DUAL_POINT",

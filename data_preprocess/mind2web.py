@@ -23,7 +23,7 @@ Select: click one point and select one choice. Parameters: {"point": "The specif
 class Mind2Web:
     def __init__(self, dataset_name:str, split: str, date: str):
         self.dataset_name = dataset_name
-        self.image_dir = f"data/images/{dataset_name}_images"
+        self.image_dir = f"images/{dataset_name}_images"
         self.split = split
         self.ann_rpath = f"data/{dataset_name}_anns/{dataset_name}_{split}.json"
 

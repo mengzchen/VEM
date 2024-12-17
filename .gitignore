@@ -7,3 +7,4 @@ cloudgpt-apim-token-cache.bin
 *.xlsx
 .venv
 .idea
+auto_save.sh

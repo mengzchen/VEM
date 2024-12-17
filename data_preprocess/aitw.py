@@ -13,7 +13,7 @@ from data_preprocess.prompt import prompt_critic_input
 
 class AITW:
     def __init__(self, split: str, parts: List, date: str):
-        self.image_dir = "data/images/aitw_images"
+        self.image_dir = "images/aitw_images"
         self.split = split
         self.ann_rpath = f"data/aitw_anns/aitw_{split}.json"
 
@@ -65,15 +65,8 @@ class AITW:
         print("--- Num of total step: " + str(len(steps)))
 
 
-    def get_negative_label_data(self):
-        """
-        TODO use GPT to generate negative data, ask it to give 1 or 2 score action
-        sample some data from general task
-        """
-        all_anns = utils.read_json(self.ann_wpath)
-
-
     def get_rl_data(self):
+        ann_wpath = f"data/aitw_anns/{self.date}/aitw_{self.split}_policy.json"
         all_anns = utils.read_json(self.ann_rpath)
 
         anns = []
@@ -91,7 +84,7 @@ class AITW:
                 image_rpath = os.path.join(self.image_dir, f"{step['img_filename']}.png")
                 assert os.path.exists(image_rpath), f"{image_rpath} image not found"
 
-                qwen2vl_action_step, image_rpath = action2step(step, "aitw", image_rpath)
+                qwen2vl_action_step, image_rpath = action2step(step, "aitw", image_rpath, add_visual=False)
                 step = aitw_step_update(step)
 
                 qwen2vl_action_list.append(f"step {step_id}: {qwen2vl_action_step}")
@@ -115,7 +108,7 @@ class AITW:
 
         print("--- Num of total step: " + str(len(steps)))
         print(f"--- example\n{steps[:3]}")
-        utils.write_json(steps, self.ann_wpath)
+        utils.write_json(steps, ann_wpath)
 
 
 # aitw use general critic => webshopping cross-task critic
@@ -126,6 +119,11 @@ def post_precess_label_data(rpath):
     type_count = {1: 0, 2: 0, 3: 0}
 
     for ann in anns:
+        # TODO to modify image path
+        ann["image_path"] = ann["image_path"].replace("data/", "")
+        ann["image_path_list"] = [image_path.replace("data/", "") for image_path in ann["image_path_list"]]
+        assert os.path.exists(ann["image_path"]), f"{ann['image_path']} not found"
+
         history_actions = "\n".join(ann["action_list"][:ann["step_id"]]).replace("<image>", "")
 
         conversations = [
@@ -152,8 +150,8 @@ def post_precess_label_data(rpath):
     utils.write_json(train_anns, wpath=rpath.split(".")[0].replace("_score", "") + f"_critic.json")
     
 
-# aitw_data = AITW(split="val", parts=["general"], date="1209")
-# aitw_data.get_rl_data()
+aitw_data = AITW(split="val", parts=["general"], date="1209")
+aitw_data.get_rl_data()
 # aitw_data.get_label_data()
 
-post_precess_label_data(rpath="data/aitw_anns/1209/aitw_train_score.jsonl")
+# post_precess_label_data(rpath="data/aitw_anns/1209/aitw_train_score_2.jsonl")
