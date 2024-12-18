@@ -8,7 +8,7 @@ finetuning_type: lora
 lora_target: all
 
 ### dataset
-dataset: critic_1211_train, critic_1211_train_more_1, critic_1211_train_more_2
+dataset: critic_1211_train # , critic_1211_train_more_1, critic_1211_train_more_2
 eval_dataset: critic_1211_val
 template: qwen2_vl
 cutoff_len: 2048
@@ -17,7 +17,7 @@ overwrite_cache: true
 preprocessing_num_workers: 16
 
 ### output
-output_dir: checkpoints/critic_1211_more
+output_dir: checkpoints/critic_1211
 logging_steps: 10
 save_steps: 500
 plot_loss: true

@@ -76,6 +76,10 @@ class Infer:
         print(classification_report(y_true, y_pred, zero_division=1))
 
     def infer_all(self):
+        if os.path.exists(f"{self.model_path}/results.jsonl"):
+            results = utils.read_jsonl(f"{self.model_path}/results.jsonl")
+            self.compute_metrix(results)
+            return
         results = []
         for ann in tqdm(self.anns):
             inputs = self.get_input(ann)

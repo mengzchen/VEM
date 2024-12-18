@@ -163,3 +163,22 @@ def plot_loss(log_dir: str, keys: List[str] = ["loss"]) -> None:
         figure_path = os.path.join(log_dir, "training_{}.png".format(key))
         plt.savefig(figure_path, format="png", dpi=100)
         print("Figure saved at:", figure_path)
+
+
+origin_dict, gen_dict = {}, {}
+gen_2_dict = {}
+# TODO level 2
+origin_anns = read_json("data/aitw_anns/1209/aitw_train_critic.json")
+for origin in origin_anns:
+    origin_dict[f"{origin['ep_id']}_{origin['step_id']}"] = origin["messages"][0]["content"].split("Current Action:")[-1]
+gen_anns = read_json("data/aitw_anns/1209/aitw_train_1_critic.json")
+for origin in gen_anns:
+    gen_dict[f"{origin['ep_id']}_{origin['step_id']}"] = origin["messages"][0]["content"].split("Current Action:")[-1]
+gen_2_anns = read_json("data/aitw_anns/1209/aitw_train_2_critic.json")
+for origin in gen_2_anns:
+    gen_2_dict[f"{origin['ep_id']}_{origin['step_id']}"] = origin["messages"][0]["content"].split("Current Action:")[-1]
+for k, v in gen_dict.items():
+    print(origin_dict[k])
+    print(v)
+    print(gen_2_dict[k])
+    print("========")

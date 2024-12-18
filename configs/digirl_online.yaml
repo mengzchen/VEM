@@ -1,12 +1,12 @@
 run_name: 'digirl-general-online'
-save_path: './checkpoints/rl-1217'
+save_path: './checkpoints/rl-1218'
 
 # data 
 data_path: './data/aitw_anns/1209/aitw_train_policy.json'
 
 # model setting
 policy_lm: './checkpoints/Auto-UI-Base'
-critic_lm: './checkpoints/critic_1211_more/merge-470'
+critic_lm: './checkpoints/critic_1211/merge-370'
 
 # hparams
 epochs: 10

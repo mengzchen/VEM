@@ -131,7 +131,6 @@ class DigiRLTrainer:
         self.step += 1
         data = [buffer.sample(1) for _ in range(self.grad_accum_steps * batch_size)]
 
-        # TODO no need for buffer
         for d in data:
             for k, v in d.items():
                 d[k] = v[0]
@@ -139,12 +138,11 @@ class DigiRLTrainer:
         dataloader = self.accelerator.prepare(DataLoader(DummyDataset(data), batch_size=batch_size, shuffle=False))
 
         self.lm_optimizer.zero_grad()
-
         losses, q_values = [], []
         if is_validation:
             with torch.no_grad():
                 for batch in dataloader:
-                    loss, q_value = self.actor_loss(**batch)
+                    loss, q_value = self.actor_loss(**batch, validation=True)
                     losses.append(loss)
                     q_values.append(q_value)
             logging.info(f"[val] step: {self.step}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
@@ -278,6 +276,8 @@ def onpolicy_train_loop(
 
         if accelerator.is_main_process:
             print("### saving")
+            if not os.path.exists(save_path):
+                os.mkdir(save_path)
             if not os.path.exists(os.path.join(save_path, f"epoch_{epoch}")):
                 os.mkdir(os.path.join(save_path, f"epoch_{epoch}"))
             trainer.save(os.path.join(save_path, f"epoch_{epoch}"))
@@ -294,8 +294,8 @@ def eval_loop(
     **kwargs
 ):
     model_name = "_".join(save_path.split("/")[-2:]).replace("checkpoints_", "")
-    # TODO change the name of result_wpath
-    result_wpath = os.path.join("checkpoints/results", f"{model_name}_val_results.jsonl")
+
+    result_wpath = os.path.join("checkpoints/results", f"{model_name}_results.jsonl")
 
     position_anns = utils.read_json("data/aitw_anns/aitw_position_val.json")
     position_dict = {}
@@ -314,14 +314,17 @@ def eval_loop(
         trainer.load(save_path)
 
         trajectories = utils.read_json(eval_path)
-        _, q_values = trainer.infer(trajectories, batch_size, add_q_value=True)
-        print(f"### {model_name} q_values: {q_values}")
+        results = trainer.infer(trajectories, batch_size, add_q_value=False)
+        utils.write_jsonl(results, result_wpath)
 
-    # for file in os.listdir("checkpoints/results"):
-    #     result_wpath = os.path.join("checkpoints/results", file)
-    #     results = utils.read_jsonl(result_wpath)
-    #     print(f"================{result_wpath.split('/')[2]}================")
-    #     compute_matrix(results, position_dict)
+    if not os.path.exists("checkpoints/results"):
+        os.mkdir("checkpoints/results")
+
+    for file in os.listdir("checkpoints/results"):
+        result_wpath = os.path.join("checkpoints/results", file)
+        results = utils.read_jsonl(result_wpath)
+        print(f"================{result_wpath.split('/')[2]}================")
+        compute_matrix(results, position_dict)
 
 
 

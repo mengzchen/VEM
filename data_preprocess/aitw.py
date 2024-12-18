@@ -119,7 +119,6 @@ def post_precess_label_data(rpath):
     type_count = {1: 0, 2: 0, 3: 0}
 
     for ann in anns:
-        # TODO to modify image path
         ann["image_path"] = ann["image_path"].replace("data/", "")
         ann["image_path_list"] = [image_path.replace("data/", "") for image_path in ann["image_path_list"]]
         assert os.path.exists(ann["image_path"]), f"{ann['image_path']} not found"

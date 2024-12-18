@@ -80,6 +80,8 @@ Current Action:
 """
 
 
+# TODO give example different type, wrong type
+# TODO explanation the action, CoT, send
 prompt_gen_1_action = """
 ## Task: 
 Given the task requirements, a sequence of actions, and their corresponding screenshots, generate a new action that matches a rating of 1 (indicating the action significantly deviates from the task requirements).
@@ -145,3 +147,6 @@ Action and ScreenShot:
 Origin Action: 
 {}
 """
+# without 500 data
+# critic origin => modify
+# rl sample data => modify
