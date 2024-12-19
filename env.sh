@@ -3,7 +3,7 @@
 export blob_dir="https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani"
 export SAS="?sv=2023-01-03&st=2024-12-16T05%3A48%3A43Z&se=2024-12-23T05%3A48%3A00Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-12-16T05%3A48%3A43Z&ske=2024-12-23T05%3A48%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=IQSgsRlQuAkhWjT68YxVSMNVxSg1RJ1bQO4wInJWhaI%3D"
 
-azcopy copy ./checkpoints/rl-1218 "$blob_dir/checkpoints$SAS" --recursive
+./azcopy copy "$blob_dir/images/aitw_images/general$SAS" ./ --recursive
 
 # get data
 #sudo apt-get install azcopy

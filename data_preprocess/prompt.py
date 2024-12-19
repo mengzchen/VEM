@@ -80,39 +80,44 @@ Current Action:
 """
 
 
-# TODO give example different type, wrong type
-# TODO explanation the action, CoT, send
-prompt_gen_1_action = """
-## Task: 
-Given the task requirements, a sequence of actions, and their corresponding screenshots, generate a new action that matches a rating of 1 (indicating the action significantly deviates from the task requirements).
+prompt_gen_1_action = """Task:Given the task requirements, a sequence of actions, and their corresponding screenshots, generate a new action that significantly deviates from the task requirements, such as directly returning to an inappropriate page or clicking into an advertisement page.
 
-## Instructions:
-1. Understand the Task Requirements.
-2. Review the provided screenshots and actions. Red points on the screenshots indicate clicks.
-3. Generate the new action that matches a rating of 1.
-4. follow the output format exactly, without adding extra text.
+Instructions:
+- Understand the task requirements.
+- Review the provided screenshots and actions. Red points on the screenshots indicate clicks.
+- Generate the new action that matches the requirements, and giving the explanation.
+- Follow the output format exactly without adding extra text.
 
-## Action Format:
-- `action_type`: Possible values include 'DUAL_CLICK', 'TYPE', 'STATUS_TASK_COMPLETE', 'PRESS_HOME', 'PRESS_BACK', 'STATUS_TASK_IMPOSSIBLE'
-- `touch_point` and `lift_point`: Relative positions on the screenshot, specified as [x, y] within the range [0, 1]
-- `typed_text`: Content for 'TYPE' actions
+Action Format:
+- action_type: Values include 'DUAL_POINT'(double-click a certain point on the screen), 'TYPE'(enter text), 'STATUS_TASK_COMPLETE'(task completed), 'PRESS_HOME'(return to the home page), 'PRESS_BACK'(return to the previous interface), 'STATUS_TASK_IMPOSSIBLE'(the task is impossible to complete).
+- touch_point and lift_point: Relative positions on the screenshot (taking the upper left corner as the base point), specified as [x, y] within the range [0, 1], for example, (0,0) is the upper left corner and (1,1) is the lower right corner.
+- typed_text: Content for 'TYPE' actions.
 
 Example Input:
-Task Requirements: What is the capital of England? 
+Task Requirements: What is the capital of England?
 Action and ScreenShot:
-step 0: "action_type": "DUAL_POINT", "touch_point": "[0.524, 0.06]", "lift_point": "[0.524, 0.06]", "typed_text": "" 
+step 0: "action_type": "DUAL_POINT", "touch_point": "[0.524, 0.06]", "lift_point": "[0.524, 0.06]", "typed_text": ""
 step 1: "action_type": "TYPE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": "capital of England"
-Origin Action: 
+Origin Action:
 step 2: "action_type": "PRESS_ENTER", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""
 
-Example Output:
-"action_type": "STATUS_TASK_COMPLETE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""
+Example Output 1:
+{
+   "explanation": "Since text about the capital of England has already been entered in the search box, pressing enter directly at this step should give the answer. However, if I generate an action indicating task completion, it will seriously deviate from the current task.",
+   "action_type": "STATUS_TASK_COMPLETE", 
+   "touch_point": "[-1.0, -1.0]", 
+   "lift_point": "[-1.0, -1.0]", 
+   "typed_text": ""
+}
 
-Task Requirements: {}
-Action and ScreenShot: 
-{}
-Origin Action: 
-{}
+Example Output 2:
+{
+   "explanation": "Since text about the capital of England has already been entered in the search box, pressing enter directly at this step should give the answer. However, if I generate a click on the adjacent advertising area, it will deviate from the task.",
+   "action_type": "DUAL_POINT", 
+   "touch_point": "[0.87, 0.52]", 
+   "lift_point": "[0.87, 0.52]", 
+   "typed_text": ""
+}
 """
 
 
@@ -147,6 +152,3 @@ Action and ScreenShot:
 Origin Action: 
 {}
 """
-# without 500 data
-# critic origin => modify
-# rl sample data => modify

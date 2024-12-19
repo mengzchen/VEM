@@ -17,7 +17,6 @@ class AITW:
         self.split = split
         self.ann_rpath = f"data/aitw_anns/aitw_{split}.json"
 
-        # choice: general single webshopping install googleapps
         self.parts = parts
         if not os.path.exists(f"data/aitw_anns/{date}"):
             os.mkdir(f"data/aitw_anns/{date}")
@@ -44,7 +43,7 @@ class AITW:
                     print(f"{image_path} image not found")
                     continue
 
-                action_step, image_path = action2step(step, "aitw", image_path, add_visual=True)
+                image_path = utils.add_visilize2screenshot(image_rpath=image_path, ann=step)
                 action_step = f"\"action_type\": \"{action_type_dict[step['action_type_text']]}\", \"touch_point\": \"{step['touch']}\", \"lift_point\": \"{step['lift']}\", \"typed_text\": \"{step['type_text']}\" <image>"
                 action_list.append(f"step {step_id}: {action_step}")
                 image_path_list.append(image_path)
@@ -60,7 +59,6 @@ class AITW:
                     "image_path": image_path_list[step_id]
                 })
 
-        print(f"--- example\n{steps[:2]}")
         utils.write_json(steps, ann_wpath)
         print("--- Num of total step: " + str(len(steps)))
 

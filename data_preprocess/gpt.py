@@ -39,8 +39,7 @@ class GPTScorer:
         fout.close()
 
 
-    @staticmethod
-    def get_good_steps(ann_rpath):
+    def get_good_steps(self, ann_rpath):
         good_step_ids = []
         anns = utils.read_jsonl(ann_rpath)
         for ann in anns:
@@ -52,6 +51,7 @@ class GPTScorer:
 
     def get_negative_anns(self, ann_rpath: str, ann_wpath: str, num: int, level: int):
         score_path = ann_rpath.replace(".json", ".jsonl").replace("label", "score")
+        
         good_step_ids = self.get_good_steps(score_path)[:num]
         anns = utils.read_json(ann_rpath)
         anns = [ann for ann in anns if f"{ann['ep_id']}_{ann['step_id']}" in good_step_ids]
@@ -81,7 +81,8 @@ class GPTScorer:
 
         with open(ann_wpath, "+a") as fout:
             for ann in tqdm(uncomplete_anns):
-                new_action = self.get_one_answer(ann).replace("```", "")
+                new_action = self.get_one_answer(ann)
+                print(new_action)
                 ann["action"] = f"step {ann['step_id']}: {new_action} <image>"
                 ann["rating"] = level
                 fout.writelines(json.dumps(ann) + "\n")
@@ -90,7 +91,14 @@ class GPTScorer:
 
 
     def get_one_answer(self, step: dict) -> str:
-        task_describe = self.prompt.format(step["task"], "\n".join(step["action_list"]), step["action"])
+        other = """
+Task Requirements: {}
+Action and ScreenShot:
+{}
+Origin Action:
+{}
+        """
+        task_describe = self.prompt + other.format(step["task"], "\n".join(step["action_list"]), step["action"])
         message = get_message(task_describe.split("<image>")[:-1], step["image_path_list"] + [step["image_path"]])
         
         response = get_chat_completion(
@@ -101,8 +109,8 @@ class GPTScorer:
         return response.choices[0].message.content
 
 
-ann_rpath = "data/aitw_anns/1209/aitw_train_label.json"
-ann_wpath = "data/aitw_anns/1209/aitw_train_score_2.jsonl"
+ann_rpath = "data/aitw_anns/1218/aitw_train_label.json"
+ann_wpath = "data/aitw_anns/1218/aitw_train_score_1.jsonl"
 # GPTScorer().get_label_anns(ann_rpath=ann_rpath, ann_wpath=ann_wpath)
 # GPTScorer().get_negative_anns(ann_rpath=ann_rpath, ann_wpath=ann_wpath, num=500, level=1)
-GPTScorer().get_negative_anns(ann_rpath=ann_rpath, ann_wpath=ann_wpath, num=500, level=2)
+GPTScorer().get_negative_anns(ann_rpath=ann_rpath, ann_wpath=ann_wpath, num=100, level=1)

@@ -5,7 +5,6 @@ from openpyxl.drawing.image import Image
 import cv2
 from collections import defaultdict
 import pandas as pd
-import yaml
 import matplotlib.pyplot as plt
 import os
 import math
@@ -21,21 +20,24 @@ def write_json(anns: List, wpath: str):
     json.dump(anns, open(wpath, "w"))
 
 
-def add_visilize2screenshot(image_rpath, action_type, action_params):
-    if action_type == "click":
+def add_visilize2screenshot(image_rpath, ann):
+    if ann["action_type_text"] == "click":
+        touch_point, lift_point = ann["touch"], ann["lift"]
+        click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
+
         image = cv2.imread(image_rpath)
         height, width, _ = image.shape
 
-        x = int(action_params[0] * width)
-        y = int(action_params[1] * height)
+        x = int(click_point[0] * width)
+        y = int(click_point[1] * height)
 
         cv2.circle(image, (x, y), 20, (0, 0, 255), -1)
 
-        image_wpath = image_rpath.split(".")[0] + "_modify.jpg"
+        image_wpath = image_rpath.split(".")[0] + "_modify.png"
         cv2.imwrite(image_wpath, image) 
         return image_wpath
     else:
-        pass
+        return image_rpath
 
 
 def write_to_excel(anns, wpath):
@@ -108,8 +110,8 @@ def sample_data(rpath, wpath):
             last_step_statistics[ann["rating"]] += 1
             sample_anns.append(ann)
 
-    colorful_print(statistics, "green")
-    colorful_print(last_step_statistics, "green")
+    print(statistics)
+    print(last_step_statistics)
 
     # sample_anns = random.sample(anns, 100)
     write_to_excel(sample_anns, wpath)
@@ -165,20 +167,10 @@ def plot_loss(log_dir: str, keys: List[str] = ["loss"]) -> None:
         print("Figure saved at:", figure_path)
 
 
-origin_dict, gen_dict = {}, {}
-gen_2_dict = {}
-# TODO level 2
-origin_anns = read_json("data/aitw_anns/1209/aitw_train_critic.json")
-for origin in origin_anns:
-    origin_dict[f"{origin['ep_id']}_{origin['step_id']}"] = origin["messages"][0]["content"].split("Current Action:")[-1]
-gen_anns = read_json("data/aitw_anns/1209/aitw_train_1_critic.json")
-for origin in gen_anns:
-    gen_dict[f"{origin['ep_id']}_{origin['step_id']}"] = origin["messages"][0]["content"].split("Current Action:")[-1]
-gen_2_anns = read_json("data/aitw_anns/1209/aitw_train_2_critic.json")
-for origin in gen_2_anns:
-    gen_2_dict[f"{origin['ep_id']}_{origin['step_id']}"] = origin["messages"][0]["content"].split("Current Action:")[-1]
-for k, v in gen_dict.items():
-    print(origin_dict[k])
-    print(v)
-    print(gen_2_dict[k])
-    print("========")
+# print("-------")
+# anns = read_jsonl("data/aitw_anns/1218/aitw_val_score.jsonl")
+# anns_2 = []
+# for ann in anns:
+#     if ann["rating"] == 2:
+#         anns_2.append(ann)
+# write_to_excel(anns=anns_2[:20], wpath="val_score_2.xlsx")
