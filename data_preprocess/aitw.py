@@ -1,52 +1,75 @@
 import os
 import sys
-import numpy as np
 sys.path.append(os.getcwd())
 
 from tqdm import tqdm
-from typing import List
 
-from data_preprocess.action_transfer import action2step, action_type_dict, aitw_step_update
+from data_preprocess.action_transfer import action_type_dict, step_2_action
 import utils
-from data_preprocess.prompt import prompt_critic_input
+from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
+from data_preprocess.gpt import GPTScorer
+import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+def get_unfinish_anns(anns, rpath):
+    if os.path.exists(rpath):
+        unfinish_anns = []
+        finish_anns = utils.read_jsonl(rpath)
+        finish_ids = [f"{ann['ep_id']}_{ann['step_id']}" for ann in finish_anns]
+        for ann in anns:
+            if f"{ann['ep_id']}_{ann['step_id']}" in finish_ids:
+                pass
+            else:
+                unfinish_anns.append(ann)
+        print(f"### finish anns: {len(finish_anns)} unfinish: {len(unfinish_anns)}")
+        return unfinish_anns
+    else:
+        return anns
 
 
 class AITW:
-    def __init__(self, split: str, parts: List, date: str):
+    def __init__(self, split: str, part: str, date: str):
         self.image_dir = "images/aitw_images"
         self.split = split
-        self.ann_rpath = f"data/aitw_anns/aitw_{split}.json"
 
-        self.parts = parts
+        self.part = part
         if not os.path.exists(f"data/aitw_anns/{date}"):
             os.mkdir(f"data/aitw_anns/{date}")
         self.date = date
+        self.gpt = GPTScorer()
     
 
-    def get_label_data(self):
-        all_anns = utils.read_json(self.ann_rpath)
-        ann_wpath = f"data/aitw_anns/{self.date}/aitw_{self.split}_label.json"
-
-        anns = []
-        for part in self.parts:
-            anns += all_anns[part]
-
-        print(f"--- num of episode: {len(anns)}")
-
+    def get_unfold_data(self):
+        anns = utils.read_json(f"data/aitw_anns/aitw_{self.split}.json")[self.part]
         steps = []
         for episode in tqdm(anns):
-            action_list, image_path_list = [], []
+            action_list, action_desc_list, image_list, add_point_image_list = [], [], [], []
             for step_id, step in enumerate(episode):
                 image_filename = f"{step['img_filename']}.png"
                 image_path = os.path.join(self.image_dir, image_filename)
                 if not os.path.exists(image_path):
                     print(f"{image_path} image not found")
                     continue
+                
+                action_list.append({
+                    "action_type": action_type_dict[step["action_type_text"]], 
+                    "touch_point": step["touch"], 
+                    "lift_point": step["lift"], 
+                    "type_text": step["type_text"]
+                })
+                image_list.append(image_path)
 
-                image_path = utils.add_visilize2screenshot(image_rpath=image_path, ann=step)
-                action_step = f"\"action_type\": \"{action_type_dict[step['action_type_text']]}\", \"touch_point\": \"{step['touch']}\", \"lift_point\": \"{step['lift']}\", \"typed_text\": \"{step['type_text']}\" <image>"
-                action_list.append(f"step {step_id}: {action_step}")
-                image_path_list.append(image_path)
+                action_desc_list.append(f"step {step_id}: " + step_2_action(
+                    action_type=action_list[-1]["action_type"], 
+                    touch_point=action_list[-1]["touch_point"],
+                    lift_point=action_list[-1]["lift_point"],
+                    typed_text=action_list[-1]["type_text"],
+                    add_all_dict=False
+                ))
+                
+                add_point_image_list.append(utils.add_visilize2screenshot(image_path, action_list[-1], "score"))
             
             for step_id, step in enumerate(episode):
                 steps.append({
@@ -54,13 +77,100 @@ class AITW:
                     "step_id": step_id,
                     "task": step["goal"], 
                     "action_list": action_list,
-                    "image_path_list": image_path_list,
-                    "action": action_list[step_id],
-                    "image_path": image_path_list[step_id]
+                    "image_list": image_list,
+                    "position": step["annot_position"],
+                    "action_type": action_type_dict[step["action_type_text"]], 
+                    "touch_point": step["touch"], 
+                    "lift_point": step["lift"], 
+                    "type_text": step["type_text"],
+                    "action_desc_list": action_desc_list,
+                    "add_point_image_list": add_point_image_list
                 })
 
-        utils.write_json(steps, ann_wpath)
-        print("--- Num of total step: " + str(len(steps)))
+        utils.write_jsonl(steps, f"data/aitw_anns/{self.part}_{self.split}.jsonl")
+
+    
+    def get_gpt_label(self):
+        anns = utils.read_jsonl(f"data/aitw_anns/{self.part}_{self.split}.jsonl")
+        ann_wpath = f"data/aitw_anns/{self.date}/{self.part}_{self.split}_critic.jsonl"
+        unfinish_anns = get_unfinish_anns(anns, ann_wpath)
+
+        write_lock = threading.Lock()
+
+        def process_ann(ann):
+            response = self.gpt.get_score(ann)
+            response = utils.parse_response(response)
+            ann["rating"], ann["explanation"] = response["rating"], response["explanation"]
+
+            conversations = [
+                {"role": "user", "content": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
+                {"role": "assistant", "content": str(ann["rating"])}
+            ]
+            ann["critic_inputs"] = conversations
+            ann["critic_images"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
+
+            return ann
+
+        # Open the file in append mode outside of the threads
+        with open(ann_wpath, "a") as fout:
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                future_to_ann = {executor.submit(process_ann, ann): ann for ann in unfinish_anns}
+                for future in tqdm(as_completed(future_to_ann), total=len(future_to_ann)):
+                    ann = future_to_ann[future]
+                    try:
+                        result = future.result()
+                        with write_lock:
+                            fout.writelines(json.dumps(result) + "\n")
+                    except Exception as exc:
+                        print(f'Error processing annotation {ann}: {exc}')
+
+            fout.close()
+
+
+    def get_negative_anns(self, num):
+        ann_rpath = f"data/aitw_anns/{self.date}/{self.part}_{self.split}_critic.jsonl"
+        ann_wpath = f"data/aitw_anns/{self.date}/{self.part}_{self.split}_critic_negative.jsonl"
+
+        step_ids = []
+        anns = utils.read_jsonl(ann_rpath)
+        for ann in anns:
+            if ann["rating"] == 2:
+                step_ids.append(f"{ann['ep_id']}_{ann['step_id']}")
+        step_ids = step_ids[:num]
+        
+        anns = [ann for ann in anns if f"{ann['ep_id']}_{ann['step_id']}" in step_ids]
+        unfinish_anns = get_unfinish_anns(anns, ann_wpath)
+
+        write_lock = threading.Lock()
+
+        def process_ann(ann):
+            negative_action = self.gpt.get_negative_action(ann)
+            # TODO modify the action description and the image
+
+            conversations = [
+                {"role": "user", "content": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
+                {"role": "assistant", "content": str(ann["rating"])}
+            ]
+            ann["critic_inputs"] = conversations
+            ann["critic_images"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
+
+            return ann
+
+        # Open the file in append mode outside of the threads
+        with open(ann_wpath, "a") as fout:
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                future_to_ann = {executor.submit(process_ann, ann): ann for ann in unfinish_anns}
+                for future in tqdm(as_completed(future_to_ann), total=len(future_to_ann)):
+                    ann = future_to_ann[future]
+                    try:
+                        result = future.result()
+                        with write_lock:
+                            fout.writelines(json.dumps(result) + "\n")
+                    except Exception as exc:
+                        print(f'Error processing annotation {ann}: {exc}')
+
+            fout.close()
+
 
 
     def get_rl_data(self):
@@ -108,47 +218,15 @@ class AITW:
         print(f"--- example\n{steps[:3]}")
         utils.write_json(steps, ann_wpath)
 
+ 
 
-# aitw use general critic => webshopping cross-task critic
-def post_precess_label_data(rpath):
-    anns = utils.read_jsonl(rpath)
-    
-    train_anns = []
-    type_count = {1: 0, 2: 0, 3: 0}
+aitw_data = AITW(split="val", part="general", date="1218")
+# aitw_data.get_unfold_data()
+aitw_data.get_gpt_label()
 
-    for ann in anns:
-        ann["image_path"] = ann["image_path"].replace("data/", "")
-        ann["image_path_list"] = [image_path.replace("data/", "") for image_path in ann["image_path_list"]]
-        assert os.path.exists(ann["image_path"]), f"{ann['image_path']} not found"
+# {1: 1187, 2: 2153}
+# anns = utils.read_jsonl("data/aitw_anns/1218/general_train_critic.jsonl")[:100]
+# utils.write_to_excel(anns, "score.xlsx")
 
-        history_actions = "\n".join(ann["action_list"][:ann["step_id"]]).replace("<image>", "")
-
-        conversations = [
-            {"role": "user", "content": prompt_critic_input.format(ann["task"], history_actions, ann["action"].replace("<image>", ""))},
-            {"role": "assistant", "content": str(ann["rating"])}
-        ]
-        
-        image_path_list = [image_path.replace("\\", "/") for image_path in ann["image_path_list"]]
-
-        example = {
-            "ep_id": ann["ep_id"],
-            "step_id": ann["step_id"],
-            "task": ann["task"],
-            "messages": conversations,
-            "images": [image_path_list[ann["step_id"]]],
-            "rating": ann["rating"]
-        }
-
-        train_anns.append(example)
-        type_count[ann["rating"]] += 1
-    
-    print(type_count)
-
-    utils.write_json(train_anns, wpath=rpath.split(".")[0].replace("_score", "") + f"_critic.json")
-    
-
-aitw_data = AITW(split="val", parts=["general"], date="1209")
-aitw_data.get_rl_data()
-# aitw_data.get_label_data()
-
-# post_precess_label_data(rpath="data/aitw_anns/1209/aitw_train_score_2.jsonl")
+# aitw_data.get_negative_anns(num=500)
+# aitw_data.get_rl_data()

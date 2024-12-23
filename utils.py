@@ -20,56 +20,65 @@ def write_json(anns: List, wpath: str):
     json.dump(anns, open(wpath, "w"))
 
 
-def add_visilize2screenshot(image_rpath, ann):
-    if ann["action_type_text"] == "click":
-        touch_point, lift_point = ann["touch"], ann["lift"]
-        click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
-
-        image = cv2.imread(image_rpath)
-        height, width, _ = image.shape
-
-        x = int(click_point[0] * width)
-        y = int(click_point[1] * height)
-
-        cv2.circle(image, (x, y), 20, (0, 0, 255), -1)
-
-        image_wpath = image_rpath.split(".")[0] + "_modify.png"
-        cv2.imwrite(image_wpath, image) 
-        return image_wpath
-    else:
+def add_visilize2screenshot(image_rpath, ann, tag):
+    if ann["action_type"] != "DUAL_POINT":
         return image_rpath
+    
+    touch_point, lift_point = ann["touch_point"], ann["lift_point"]
+    click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
+
+    image = cv2.imread(image_rpath)
+    height, width, _ = image.shape
+
+    x = int(click_point[0] * width)
+    y = int(click_point[1] * height)
+
+    cv2.circle(image, (x, y), 20, (0, 0, 255), -1)
+
+    image_wpath = image_rpath.split(".")[0] + f"_{tag}.png"
+    cv2.imwrite(image_wpath, image) 
+
+    return image_wpath
 
 
 def write_to_excel(anns, wpath):
     wb = openpyxl.Workbook()
     ws = wb.active
 
-    ws.cell(row=1, column=1, value="Image")
-    ws.cell(row=1, column=2, value="Task")
-    ws.cell(row=1, column=3, value="Action")
-    ws.cell(row=1, column=4, value="Response")
-    ws.cell(row=1, column=5, value="Rating")
+    ws.cell(row=1, column=1, value="image")
+    ws.cell(row=1, column=2, value="image(add point)")
+    ws.cell(row=1, column=3, value="task")
+    ws.cell(row=1, column=4, value="history action")
+    ws.cell(row=1, column=5, value="current action")
+    ws.cell(row=1, column=6, value="rating")
+    ws.cell(row=1, column=7, value="explanation")
 
     for idx, ann in enumerate(anns, start=2):
-        ws.cell(row=idx, column=2, value=ann["task"])
-        ws.cell(row=idx, column=3, value=ann["action"])
-        ws.cell(row=idx, column=4, value=ann["response"])
-        ws.cell(row=idx, column=5, value=ann["rating"])
+        ws.cell(row=idx, column=3, value=ann["task"])
+        ws.cell(row=idx, column=4, value="\n".join(ann["action_desc_list"]))
+        ws.cell(row=idx, column=5, value=ann["action_desc_list"][ann["step_id"]])
+        ws.cell(row=idx, column=6, value=ann["rating"])
+        ws.cell(row=idx, column=7, value=ann["explanation"])
 
-        img = Image(ann["image_path"])
+        img = Image(ann["image_list"][ann["step_id"]])
         img.width, img.height = (240, 480)
         ws.row_dimensions[idx].height = 400
         ws.add_image(img, f'A{idx}')
+        img = Image(ann["add_point_image_list"][ann["step_id"]])
+        img.width, img.height = (240, 480)
+        ws.row_dimensions[idx].height = 400
+        ws.add_image(img, f'B{idx}')
+
 
     ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 20
     wb.save(wpath)
 
 
-def parse_rating(ann):
+def parse_response(response):
     try:
-        response = ann["response"].replace("*", "")
-        rating = int(response.split("Rating: ")[1].split("\n")[0])
-        return rating
+        response = response.replace("```", "").replace("json", "")
+        return json.loads(response)
     except:
         return -1
     
@@ -97,24 +106,6 @@ def read_jsonl(rpath):
 def read_xlsx(rpath):
     data = pd.read_excel(rpath)
     return data.to_dict(orient="records")
-
-
-def sample_data(rpath, wpath):
-    sample_anns = []
-    statistics = defaultdict(int)
-    last_step_statistics = defaultdict(int)
-    anns = read_jsonl(rpath)
-    for ann in anns:
-        statistics[ann["rating"]] += 1
-        if ann["step_id"] == len(ann["action_list"]) - 1:
-            last_step_statistics[ann["rating"]] += 1
-            sample_anns.append(ann)
-
-    print(statistics)
-    print(last_step_statistics)
-
-    # sample_anns = random.sample(anns, 100)
-    write_to_excel(sample_anns, wpath)
 
 
 def dict_mean(dict_list):
@@ -166,11 +157,3 @@ def plot_loss(log_dir: str, keys: List[str] = ["loss"]) -> None:
         plt.savefig(figure_path, format="png", dpi=100)
         print("Figure saved at:", figure_path)
 
-
-# print("-------")
-# anns = read_jsonl("data/aitw_anns/1218/aitw_val_score.jsonl")
-# anns_2 = []
-# for ann in anns:
-#     if ann["rating"] == 2:
-#         anns_2.append(ann)
-# write_to_excel(anns=anns_2[:20], wpath="val_score_2.xlsx")

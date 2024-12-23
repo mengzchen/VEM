@@ -1,10 +1,10 @@
 {
-  "critic_1211_train": {
-    "file_name": "aitw_anns/1209/aitw_train_critic.json",
+  "critic_train": {
+    "file_name": "aitw_anns/1218/aitw_train_critic.jsonl",
     "formatting": "sharegpt",
     "columns": {
-      "messages": "messages",
-      "images": "images"
+      "messages": "critic_inputs",
+      "images": "critic_images"
     },
     "tags": {
       "role_tag": "role",
@@ -13,40 +13,12 @@
       "assistant_tag": "assistant"
     }
   },
-  "critic_1211_val": {
-    "file_name": "aitw_anns/1209/aitw_val_critic.json",
+  "critic_val": {
+    "file_name": "aitw_anns/1218/aitw_val_critic.jsonl",
     "formatting": "sharegpt",
     "columns": {
-      "messages": "messages",
-      "images": "images"
-    },
-    "tags": {
-      "role_tag": "role",
-      "content_tag": "content",
-      "user_tag": "user",
-      "assistant_tag": "assistant"
-    }
-  },
-  "critic_1211_train_more_1": {
-    "file_name": "aitw_anns/1209/aitw_train_1_critic.json",
-    "formatting": "sharegpt",
-    "columns": {
-      "messages": "messages",
-      "images": "images"
-    },
-    "tags": {
-      "role_tag": "role",
-      "content_tag": "content",
-      "user_tag": "user",
-      "assistant_tag": "assistant"
-    }
-  },
-  "critic_1211_train_more_2": {
-    "file_name": "aitw_anns/1209/aitw_train_2_critic.json",
-    "formatting": "sharegpt",
-    "columns": {
-      "messages": "messages",
-      "images": "images"
+      "messages": "critic_inputs",
+      "images": "critic_images"
     },
     "tags": {
       "role_tag": "role",

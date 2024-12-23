@@ -8,3 +8,4 @@ cloudgpt-apim-token-cache.bin
 .venv
 .idea
 auto_save.sh
+images

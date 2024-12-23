@@ -1,9 +1,7 @@
-from PIL import Image
 import utils
-import enum
 from eval_tools.aitw import str_2_format
 
-# TODO 这里为什么不能有scroll的选项
+
 action_type_dict = {
     "type": "TYPE",
     "click": "DUAL_POINT",
@@ -12,15 +10,14 @@ action_type_dict = {
     "press enter": "PRESS_ENTER",
     "status task complete": "STATUS_TASK_COMPLETE",
     "status task impossible": "STATUS_TASK_IMPOSSIBLE",
-
-    "scroll down": "DUAL_POINT",
-    "scroll up": "DUAL_POINT",
-    "scroll left": "DUAL_POINT",
-    "scroll right": "DUAL_POINT",
+    "scroll down": "SCROLL_DOWN",
+    "scroll up": "SCROLL_UP",
+    "scroll left": "SCROLL_LEFT",
+    "scroll right": "SCROLL_RIGHT",
 }
 
 
-def aitw_step_update(ann):
+def scroll_map(ann):
     if ann["action_type_text"] == "scroll down":
         ann["touch"], ann["lift"] = [0.2, 0.5], [0.8, 0.5]
     elif ann["action_type_text"] == "scroll up":
@@ -72,3 +69,15 @@ def update_trajectory(trajectories, results):
         trajectories[i]["next_action"] = results[i]["output"]
 
     return trajectories
+
+
+def step_2_action(action_type, touch_point, lift_point, typed_text, add_all_dict):
+    if add_all_dict:
+        return f"\"action_type\": \"{action_type}\", \"touch_point\": \"{touch_point}\", \"lift_point\": \"{lift_point}\", \"typed_text\": \"{typed_text}\""
+    else:
+        if action_type == "DUAL_POINT":
+            return f"\"action_type\": \"{action_type}\", \"click_point\": \"{touch_point}\""
+        elif action_type == "TYPE":
+            return f"\"action_type\": \"{action_type}\", \"typed_text\": \"{typed_text}\""
+        else:
+            return f"\"action_type\": \"{action_type}\""
