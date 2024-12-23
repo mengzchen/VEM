@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 export blob_dir="https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani"
-export SAS="?sv=2023-01-03&st=2024-12-16T05%3A48%3A43Z&se=2024-12-23T05%3A48%3A00Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-12-16T05%3A48%3A43Z&ske=2024-12-23T05%3A48%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=IQSgsRlQuAkhWjT68YxVSMNVxSg1RJ1bQO4wInJWhaI%3D"
+export SAS="?sv=2023-01-03&st=2024-12-23T06%3A01%3A13Z&se=2024-12-30T06%3A01%3A00Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2024-12-23T06%3A01%3A13Z&ske=2024-12-30T06%3A01%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=CjCAafTOaZT%2Fm72VL0HBE%2BEEJJeAU7ss%2FAQPdi0E10A%3D"
 
 # ./azcopy copy "$blob_dir/images/aitw_images/general$SAS" ./ --recursive
 
@@ -11,12 +11,10 @@ export SAS="?sv=2023-01-03&st=2024-12-16T05%3A48%3A43Z&se=2024-12-23T05%3A48%3A0
 
 if [ ! -d "checkpoints" ]; then
    mkdir checkpoints
-   cd checkpoints
-   ./azcopy copy "$blob_dir/checkpoints/Auto-UI-Base$SAS" ./ --recursive
-   ./azcopy copy "$blob_dir/checkpoints/Qwen2-VL-7B-Instruct$SAS" ./ --recursive
-   ./azcopy copy "$blob_dir/checkpoints/blip2-opt-2.7b$SAS" ./ --recursive
-   ./azcopy copy "$blob_dir/checkpoints/roberta-base$SAS" ./ --recursive
-   cd ../
+   ./azcopy copy "$blob_dir/checkpoints/Auto-UI-Base$SAS" ./checkpoints --recursive
+   ./azcopy copy "$blob_dir/checkpoints/Qwen2-VL-7B-Instruct$SAS" ./checkpoints --recursive
+   ./azcopy copy "$blob_dir/checkpoints/blip2-opt-2.7b$SAS" ./checkpoints --recursive
+   ./azcopy copy "$blob_dir/checkpoints/roberta-base$SAS" ./checkpoints --recursive
 fi
 
 if [ ! -d "images" ]; then

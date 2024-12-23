@@ -130,6 +130,7 @@ prompt_critic_user = """Task Requirements: {}
 Previous Action: 
 {}
 Current Action and Screenshot: 
+<image>
 {}
 """
 

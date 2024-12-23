@@ -103,8 +103,8 @@ class AITW:
             ann["rating"], ann["explanation"] = response["rating"], response["explanation"]
 
             conversations = [
-                {"role": "user", "content": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
-                {"role": "assistant", "content": str(ann["rating"])}
+                {"from": "human", "value": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
+                {"from": "gpt", "value": str(ann["rating"])}
             ]
             ann["critic_inputs"] = conversations
             ann["critic_images"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
@@ -222,7 +222,7 @@ class AITW:
 
 aitw_data = AITW(split="val", part="general", date="1218")
 # aitw_data.get_unfold_data()
-aitw_data.get_gpt_label()
+# aitw_data.get_gpt_label()
 
 # {1: 1187, 2: 2153}
 # anns = utils.read_jsonl("data/aitw_anns/1218/general_train_critic.jsonl")[:100]
@@ -230,3 +230,6 @@ aitw_data.get_gpt_label()
 
 # aitw_data.get_negative_anns(num=500)
 # aitw_data.get_rl_data()
+
+import torch
+print(torch.distributed.is_nccl_available())
