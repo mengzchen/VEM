@@ -178,13 +178,13 @@ prompt_negative_system = """As an expert in the field of GUI and 负样本数据
       (3) Selecting the most correct entry point to complete the current task.
 
 ## Output requirements:
-- Format: {"action_desc": int, "explanation": str}. Do not include any additional characters beyond this format
-- The "rating" field should be represented by the number 1 or 2 indicating the evaluation level. The "explanation" field should explain the evaluation process that led to this rating, without including descriptions of operations after the current step (future operations are considered unknown).
+- Format: {"action_desc": dict, "explanation": str}. Do not include any additional characters beyond this format
+- The "action_desc" field 需要给出新生成的负样本action所涉及的字段,即上文中text description部分所给出的格式.The "explanation" field 需要解释给出新的这个负样本的逻辑.
 
 ## Example Input:
 Task Requirements: What is the capital of England?
 Action and ScreenShot:
-step 0: "action_type": "DUAL_POINT", "touch_point": "[0.524, 0.06]", "lift_point": "[0.524, 0.06]", "typed_text": ""
+step 0: "action_type": "DUAL_POINT", "touch_point": "[0.524, 0.06]", "lift_point": "[0.524, 0.06]"
 step 1: "action_type": "TYPE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": "capital of England"
 Origin Action:
 step 2: "action_type": "PRESS_ENTER", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""

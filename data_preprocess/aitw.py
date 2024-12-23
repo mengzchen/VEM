@@ -46,9 +46,10 @@ class AITW:
         steps = []
         for episode in tqdm(anns):
             action_list, action_desc_list, image_list, add_point_image_list = [], [], [], []
+            action_desc_all_list, action_type_list = [], []
             for step_id, step in enumerate(episode):
                 image_filename = f"{step['img_filename']}.png"
-                image_path = os.path.join(self.image_dir, image_filename)
+                image_path = os.path.join(self.image_dir, image_filename).replace("\\", "/")
                 if not os.path.exists(image_path):
                     print(f"{image_path} image not found")
                     continue
@@ -59,6 +60,7 @@ class AITW:
                     "lift_point": step["lift"], 
                     "type_text": step["type_text"]
                 })
+                action_type_list.append(action_type_dict[step["action_type_text"]])
                 image_list.append(image_path)
 
                 action_desc_list.append(f"step {step_id}: " + step_2_action(
@@ -67,6 +69,14 @@ class AITW:
                     lift_point=action_list[-1]["lift_point"],
                     typed_text=action_list[-1]["type_text"],
                     add_all_dict=False
+                ))
+
+                action_desc_all_list.append(f"step {step_id}: " + step_2_action(
+                    action_type=action_list[-1]["action_type"], 
+                    touch_point=action_list[-1]["touch_point"],
+                    lift_point=action_list[-1]["lift_point"],
+                    typed_text=action_list[-1]["type_text"],
+                    add_all_dict=True
                 ))
                 
                 add_point_image_list.append(utils.add_visilize2screenshot(image_path, action_list[-1], "score"))
@@ -84,7 +94,9 @@ class AITW:
                     "lift_point": step["lift"], 
                     "type_text": step["type_text"],
                     "action_desc_list": action_desc_list,
-                    "add_point_image_list": add_point_image_list
+                    "add_point_image_list": add_point_image_list,
+                    "action_type_list": action_type_list,
+                    "action_desc_all_list": action_desc_all_list
                 })
 
         utils.write_jsonl(steps, f"data/aitw_anns/{self.part}_{self.split}.jsonl")
@@ -148,8 +160,8 @@ class AITW:
             # TODO modify the action description and the image
 
             conversations = [
-                {"role": "user", "content": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
-                {"role": "assistant", "content": str(ann["rating"])}
+                {"from": "human", "value": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
+                {"from": "gpt", "value": str(ann["rating"])}
             ]
             ann["critic_inputs"] = conversations
             ann["critic_images"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
@@ -172,64 +184,29 @@ class AITW:
             fout.close()
 
 
-
     def get_rl_data(self):
-        ann_wpath = f"data/aitw_anns/{self.date}/aitw_{self.split}_policy.json"
-        all_anns = utils.read_json(self.ann_rpath)
+        ann_rpath = f"data/aitw_anns/{self.part}_{self.split}.jsonl"
+        ann_wpath = f"data/aitw_anns/{self.date}/aitw_{self.split}_policy.jsonl"
+        anns = utils.read_jsonl(ann_rpath)
 
-        anns = []
-        for part in self.parts:
-            anns += all_anns[part]
+        for ann in tqdm(anns):
+            previous_actions = "\n".join(ann["action_desc_all_list"][:ann["step_id"]])
+            ann["policy_image"] = ann["image_list"][ann["step_id"]]
+            ann["policy_input"] = f"Previous Action:\n{previous_actions}\nGoal:\n{ann['task']}".replace("'", "")
+            ann["policy_output"] = f"Action Plan: {ann['action_type_list'][ann['step_id']:]} ; Action Decision: {ann['action_desc_all_list'][ann['step_id']]}".replace("'", "")
 
-        print(f"--- num of episode: {len(anns)}")
-
-        steps = []
-        for episode in tqdm(anns):
-            qwen2vl_action_list, image_rpath_list = [], []
-            autogui_action_list, autogui_action_plans = [], []
-
-            for step_id, step in enumerate(episode):
-                image_rpath = os.path.join(self.image_dir, f"{step['img_filename']}.png")
-                assert os.path.exists(image_rpath), f"{image_rpath} image not found"
-
-                qwen2vl_action_step, image_rpath = action2step(step, "aitw", image_rpath, add_visual=False)
-                step = aitw_step_update(step)
-
-                qwen2vl_action_list.append(f"step {step_id}: {qwen2vl_action_step}")
-                autogui_action_list.append(f"\"action_type\": \"{action_type_dict[step['action_type_text']]}\", \"touch_point\": \"{step['touch']}\", \"lift_point\": \"{step['lift']}\", \"typed_text\": \"{step['type_text']}\"")
-                autogui_action_plans.append(action_type_dict[step['action_type_text']])
-                image_rpath_list.append(image_rpath)
-            
-
-            for step_id, step in enumerate(episode):
-                history_actions = "\n".join(qwen2vl_action_list[:step_id])
-                previous_actions = "\n".join(autogui_action_list[:step_id])
-                image_path = image_rpath_list[step_id].replace("_modify", "").replace("jpg", "png")
-                steps.append({
-                    "ep_id": step["ep_id"], 
-                    "step_id": step_id,
-                    "image_path": image_path,
-                    "critic_input": prompt_critic_input.format(step["goal"], history_actions, f"Step {step_id}: ").rstrip("\n"),
-                    "history_action": f"Previous Action:\n{previous_actions}\nGoal:\n{step['goal']}".replace("'", ""),
-                    "next_action": f"Action Plan: {autogui_action_plans[step_id:]} ; Action Decision: {autogui_action_list[step_id]}".replace("'", "")
-                })
-
-        print("--- Num of total step: " + str(len(steps)))
-        print(f"--- example\n{steps[:3]}")
-        utils.write_json(steps, ann_wpath)
+        utils.write_jsonl(anns, ann_wpath)
 
  
 
-aitw_data = AITW(split="val", part="general", date="1218")
-# aitw_data.get_unfold_data()
+aitw_data = AITW(split="train", part="general", date="1218")
+aitw_data.get_unfold_data()
 # aitw_data.get_gpt_label()
+aitw_data.get_rl_data()
 
 # {1: 1187, 2: 2153}
 # anns = utils.read_jsonl("data/aitw_anns/1218/general_train_critic.jsonl")[:100]
 # utils.write_to_excel(anns, "score.xlsx")
 
 # aitw_data.get_negative_anns(num=500)
-# aitw_data.get_rl_data()
 
-import torch
-print(torch.distributed.is_nccl_available())

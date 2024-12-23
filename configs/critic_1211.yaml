@@ -37,6 +37,6 @@ ddp_timeout: 180000000
 predict_with_generate: false
 do_predict: false
 compute_accuracy: true
-per_device_eval_batch_size: 6
+per_device_eval_batch_size: 4
 eval_strategy: steps
 eval_steps: 500

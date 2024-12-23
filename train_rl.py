@@ -242,7 +242,7 @@ def onpolicy_train_loop(
         max_grad_norm=max_grad_norm
     )
 
-    all_trajectories = utils.read_json(data_path)
+    all_trajectories = utils.read_jsonl(data_path)
 
     agent.prepare()
     trainer.prepare()
@@ -297,7 +297,7 @@ def eval_loop(
 
     result_wpath = os.path.join("checkpoints/results", f"{model_name}_results.jsonl")
 
-    position_anns = utils.read_json("data/aitw_anns/aitw_position_val.json")
+    position_anns = utils.read_jsonl("data/aitw_anns/general_val.jsonl")
     position_dict = {}
     for ann in position_anns:
         position_dict[f"{ann['ep_id']}_{ann['step_id']}"] = ann["annot_position"]
@@ -313,7 +313,7 @@ def eval_loop(
         print(f"### Loading from previous checkpoint: {save_path}")
         trainer.load(save_path)
 
-        trajectories = utils.read_json(eval_path)
+        trajectories = utils.read_jsonl(eval_path)
         results = trainer.infer(trajectories, batch_size, add_q_value=False)
         utils.write_jsonl(results, result_wpath)
 
