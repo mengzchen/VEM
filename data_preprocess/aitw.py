@@ -71,7 +71,7 @@ class AITW:
                     add_all_dict=False
                 ))
 
-                action_desc_all_list.append(f"step {step_id}: " + step_2_action(
+                action_desc_all_list.append(step_2_action(
                     action_type=action_list[-1]["action_type"], 
                     touch_point=action_list[-1]["touch_point"],
                     lift_point=action_list[-1]["lift_point"],
@@ -199,7 +199,7 @@ class AITW:
 
  
 
-aitw_data = AITW(split="train", part="general", date="1218")
+aitw_data = AITW(split="val", part="general", date="1218")
 aitw_data.get_unfold_data()
 # aitw_data.get_gpt_label()
 aitw_data.get_rl_data()

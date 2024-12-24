@@ -59,23 +59,24 @@ class DigiRLTrainer:
 
     def actor_loss(
         self,
-        image_paths,
+        critic_images,
         critic_inputs,
-        history_actions,
-        next_actions,
+        policy_inputs,
+        policy_outputs,
+        policy_images,
         validation=False,
         **kwargs
     ):
         dtype = self.accelerator.unwrap_model(self.agent.model).dtype
         device = self.accelerator.unwrap_model(self.agent.model).device
-
+        
         messages = []
-        for critic_input, image_path in zip(critic_inputs, image_paths):
+        for critic_input, critic_images in zip(critic_inputs, critic_images):
             messages.append([{
                 "role": "user",
                 "content": [
                     {"type": "text", "text": critic_input},
-                    {"type": "image", "image": image_path, "max_pixels": 56000}
+                    {"type": "image", "image": critic_image, "max_pixels": 56000}
                 ]
             }])
 
@@ -107,15 +108,15 @@ class DigiRLTrainer:
         q_values = [int(val) for val in q_values]
         q_values = torch.tensor(q_values, dtype=dtype, requires_grad=True).to(device)
 
-        q_values = (q_values - 2) / 2
+        q_values = q_values / 2
 
-        image_features = []
-        for image_path in image_paths:
-            image_feature = self.image_process.to_feat(image_path=image_path).to(device, dtype=dtype)
-            image_features.append(image_feature)
-        image_features = torch.stack(image_features)
+        policy_image_features = []
+        for policy_image in policy_images:
+            policy_image_feature = self.image_process.to_feat(image_path=policy_image).to(device, dtype=dtype)
+            policy_image_features.append(policy_image_feature)
+        policy_image_features = torch.stack(policy_image_features)
 
-        log_prob = self.agent.get_log_prob(history_actions, image_features, next_actions).sum(dim=1).flatten()
+        log_prob = self.agent.get_log_prob(policy_inputs, policy_image_features, policy_outputs).sum(dim=1).flatten()
 
         pg_loss = - torch.mean(log_prob * q_values)
 
@@ -135,7 +136,8 @@ class DigiRLTrainer:
             for k, v in d.items():
                 d[k] = v[0]
 
-        dataloader = self.accelerator.prepare(DataLoader(DummyDataset(data), batch_size=batch_size, shuffle=False))
+        keys = ["ep_id", "step_id", "policy_inputs", "policy_outputs", "policy_images", "critic_inputs", "critic_images"]
+        dataloader = self.accelerator.prepare(DataLoader(DummyDataset(data, keys), batch_size=batch_size, shuffle=False))
 
         self.lm_optimizer.zero_grad()
         losses, q_values = [], []
@@ -164,14 +166,14 @@ class DigiRLTrainer:
     def infer(self, data, batch_size, add_q_value):
         dtype = self.accelerator.unwrap_model(self.agent.model).dtype
         device = self.accelerator.unwrap_model(self.agent.model).device
-        dataloader = DataLoader(DummyDataset(data), batch_size=batch_size, shuffle=False)
+        keys = ["ep_id", "step_id", "policy_input", "policy_output", "policy_image"]
+        dataloader = DataLoader(DummyDataset(data, keys), batch_size=batch_size, shuffle=False)
         dataloader = self.accelerator.prepare(dataloader)
 
         results = []
         for batch in tqdm(dataloader):
             ep_ids, step_ids = batch["ep_id"], batch["step_id"]
-            texts, groundtruths = batch["history_action"], batch["next_action"]
-            image_paths = batch["image_path"]
+            texts, groundtruths, image_paths = batch["policy_input"], batch["policy_output"], batch["policy_image"]
             image_features = []
             for image_path in image_paths:
                 image_feature = self.image_process.to_feat(image_path=image_path).to(device, dtype=dtype)
@@ -250,7 +252,6 @@ def onpolicy_train_loop(
     print(f"### all trajectories: {len(all_trajectories)}")
 
     logs = []
-    # split val and train
     train_trajectories = all_trajectories[:int(len(all_trajectories) * 0.95)]
     val_trajectories = all_trajectories[int(len(all_trajectories) * 0.95):]
     random.shuffle(train_trajectories)
@@ -262,6 +263,7 @@ def onpolicy_train_loop(
 
             results = trainer.infer(sample_trajectories, batch_size, add_q_value=False)
             sample_trajectories = update_trajectory(sample_trajectories, results)
+            
             replay_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(sample_trajectories))
 
             for d in sample_trajectories:

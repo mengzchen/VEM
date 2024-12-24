@@ -1,5 +1,6 @@
 import utils
 from eval_tools.aitw import str_2_format
+from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
 
 
 action_type_dict = {
@@ -58,17 +59,24 @@ def convert_policy_output_to_critic_input(output_text, image_rpath):
     return action, image_rpath
 
 
-def update_trajectory(trajectories, results):
-    for i in range(len(results)):
-        action, image_rpath = convert_policy_output_to_critic_input(
-            output_text=results[i]["output"],
-            image_rpath=trajectories[i]["image_path"]
+def update_trajectory(anns, results):
+    for (result, ann) in zip(results, anns):
+        new_action = str_2_format(result["output"])
+        new_action_desc = step_2_action(
+            new_action["action_type"],
+            new_action["touch_point"],
+            new_action["lift_point"],
+            new_action["typed_text"],
+            add_all_dict=False
         )
-        trajectories[i]["critic_input"] += action
-        trajectories[i]["image_path"] = image_rpath
-        trajectories[i]["next_action"] = results[i]["output"]
+        
+        history_action_desc = "\n".join(ann["action_desc_list"][:ann["step_id"] - 1]) + "\n" + new_action_desc
+        
+        ann["critic_input"] = prompt_critic_system + prompt_critic_user.format(ann["task"], history_action_desc, new_action_desc)
+        ann["policy_output"] = new_action_desc
+        ann["critic_image"] = utils.add_visilize2screenshot(ann["policy_image"], new_action, "policy")
 
-    return trajectories
+    return anns
 
 
 def step_2_action(action_type, touch_point, lift_point, typed_text, add_all_dict):
