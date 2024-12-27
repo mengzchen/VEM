@@ -18,21 +18,6 @@ action_type_dict = {
 }
 
 
-def scroll_map(ann):
-    if ann["action_type_text"] == "scroll down":
-        ann["touch"], ann["lift"] = [0.2, 0.5], [0.8, 0.5]
-    elif ann["action_type_text"] == "scroll up":
-        ann["touch"], ann["lift"] = [0.8, 0.5], [0.2, 0.5]
-    elif ann["action_type_text"] == "scroll left":
-        ann["touch"], ann["lift"] = [0.5, 0.8], [0.5, 0.2]
-    elif ann["action_type_text"] == "scroll right":
-        ann["touch"], ann["lift"] = [0.5, 0.2], [0.5, 0.8]
-    else:
-        pass
-
-    return ann
-
-
 def convert_policy_output_to_critic_input(output_text, image_rpath):
     # TODO modify the format
     actor_output = str_2_format(output_text)
@@ -58,10 +43,33 @@ def convert_policy_output_to_critic_input(output_text, image_rpath):
 
     return action, image_rpath
 
+scroll_map = {
+    "SCROLL_UP": [[0.8, 0.5], [0.2, 0.5]],
+    "SCROLL_DOWN": [[0.2, 0.5], [0.8, 0.5]],
+    "SCROLL_LEFT": [[0.5, 0.8], [0.5, 0.2]],
+    "SCROLL_RIGHT": [[0.5, 0.2], [0.5, 0.8]]
+}
+
+
+def extract_scroll(action):
+    if action["touch_point"] == scroll_map["SCROLL_UP"][0] and action["lift_point"] == scroll_map["SCROLL_UP"][1]:
+        action["action_type"] = "SCROLL_UP"
+    elif action["touch_point"] == scroll_map["SCROLL_DOWN"][0] and action["lift_point"] == scroll_map["SCROLL_DOWN"][1]:
+        action["action_type"] = "SCROLL_DOWN"
+    elif action["touch_point"] == scroll_map["SCROLL_LEFT"][0] and action["lift_point"] == scroll_map["SCROLL_LEFT"][1]:
+        action["action_type"] = "SCROLL_LEFT"
+    elif action["touch_point"] == scroll_map["SCROLL_RIGHT"][0] and action["lift_point"] == scroll_map["SCROLL_RIGHT"][1]:
+        action["action_type"] = "SCROLL_RIGHT"
+    else:
+        return action
+    
+    return action
+
 
 def update_trajectory(anns, results):
     for (result, ann) in zip(results, anns):
         new_action = str_2_format(result["output"])
+        new_action = extract_scroll(new_action)
         new_action_desc = step_2_action(
             new_action["action_type"],
             new_action["touch_point"],
@@ -81,7 +89,12 @@ def update_trajectory(anns, results):
 
 def step_2_action(action_type, touch_point, lift_point, typed_text, add_all_dict):
     if add_all_dict:
-        return f"\"action_type\": \"{action_type}\", \"touch_point\": \"{touch_point}\", \"lift_point\": \"{lift_point}\", \"typed_text\": \"{typed_text}\""
+        # for auto gui input
+        if "SCROLL" in action_type:
+            point_pair = scroll_map[action_type]
+            return f"\"action_type\": \"DUAL_POINT\", \"touch_point\": \"{point_pair[0]}\", \"lift_point\": \"{point_pair[1]}\", \"typed_text\": \"{typed_text}\""
+        else:
+            return f"\"action_type\": \"{action_type}\", \"touch_point\": \"{touch_point}\", \"lift_point\": \"{lift_point}\", \"typed_text\": \"{typed_text}\""
     else:
         if action_type == "DUAL_POINT":
             return f"\"action_type\": \"{action_type}\", \"click_point\": \"{touch_point}\""

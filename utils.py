@@ -60,7 +60,7 @@ def write_to_excel(anns, wpath):
         ws.cell(row=idx, column=6, value=ann["rating"])
         ws.cell(row=idx, column=7, value=ann["explanation"])
 
-        img = Image(ann["image_list"][ann["step_id"]])
+        img = Image(ann["image_list"][ann["step_id"]].replace("\\", "/"))
         img.width, img.height = (240, 480)
         ws.row_dimensions[idx].height = 400
         ws.add_image(img, f'A{idx}')
@@ -157,3 +157,7 @@ def plot_loss(log_dir: str, keys: List[str] = ["loss"]) -> None:
         plt.savefig(figure_path, format="png", dpi=100)
         print("Figure saved at:", figure_path)
 
+# anns = read_jsonl("data/aitw_anns/1218/general_train_critic.jsonl")
+# for ann in anns[:20]:
+#     print(ann["rating"])
+#     print(ann["explanation"])

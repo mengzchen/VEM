@@ -1,12 +1,12 @@
 run_name: 'digirl-general-online'
-save_path: './checkpoints/rl-1218/epoch_0'
+save_path: './checkpoints/rl-1224/epoch_5'
 
 # data 
-data_path: './data/aitw_anns/1209/aitw_train_policy.json'
+data_path: './data/aitw_anns/1218/aitw_train_policy.jsonl'
 
 # model setting
 policy_lm: './checkpoints/Auto-UI-Base'
-critic_lm: './checkpoints/critic_1211_more/merge-470'
+critic_lm: './checkpoints/critic_1218/merge-520'
 
 # hparams
 capacity: 2000  
@@ -26,4 +26,4 @@ max_new_tokens: 128
 
 # evaluation
 eval_only: True
-eval_path: './data/aitw_anns/1209/aitw_val_policy.json'
+eval_path: './data/aitw_anns/1218/aitw_val_policy.jsonl'

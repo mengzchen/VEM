@@ -229,10 +229,8 @@ def str_2_format(output):
       else:
           typed_text = ""
 
-      action = {"action_type": action_type, "touch_point": touch_point, "lift_point": lift_point,
-                "typed_text": typed_text.lower()}
+      action = {"action_type": action_type, "touch_point": touch_point, "lift_point": lift_point, "typed_text": typed_text.lower()}
 
-      # why
       action["touch_point"] = [action["touch_point"][1], action["touch_point"][0]]
       action["lift_point"] = [action["lift_point"][1], action["lift_point"][0]]
     except:
@@ -250,7 +248,6 @@ def compute_matrix(anns, position_dict):
 
     succ_task, task_num = 0, 0
     succ_step, step_num = 0, 0
-    q_value = 0
     for _, ann in ep2ann.items():
         task_flag = True
         task_num += 1
@@ -262,6 +259,7 @@ def compute_matrix(anns, position_dict):
             position = position_dict[f"{step['ep_id']}_{step['step_id']}"]
             annot_position = np.array([position[i:i + 4] for i in range(0, len(position), 4)])
             
+            # TODO scroll problem
             check_match = check_actions_match(
                 pred["touch_point"], 
                 pred["lift_point"],

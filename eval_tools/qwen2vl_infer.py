@@ -20,9 +20,9 @@ class Infer:
 
         self.processor = AutoProcessor.from_pretrained(self.model_path)
 
-        test_rpath = "data/aitw_anns/1209/aitw_val_critic.json"
+        test_rpath = "data/aitw_anns/1218/general_val_critic.jsonl"
         
-        self.anns = utils.read_json(test_rpath)
+        self.anns = utils.read_jsonl(test_rpath)
 
         print(f"### len of test anns: {len(self.anns)}")
     
@@ -30,8 +30,8 @@ class Infer:
         message = [{
             "role": "user",
             "content": [
-                {"type": "text", "text": ann["messages"][0]["content"].replace("<image>\n", "")},
-                {"type": "image", "image": ann["images"][0]}
+                {"type": "text", "text": ann["critic_inputs"][0]["value"]},
+                {"type": "image", "image": ann["critic_images"]}
             ]
         }]
 
@@ -52,7 +52,6 @@ class Infer:
         return inputs
 
     def infer_one(self, inputs):
-        # Inference: Generation of the output
         generated_ids = self.model.generate(**inputs, max_new_tokens=128)
         generated_ids_trimmed = [
             out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
@@ -67,12 +66,8 @@ class Infer:
         y_true, y_pred = [], []
         for result in results:
             y_true.append(result["rating"])
-            if "Rating" in result["prediction"]:
-                result["response"] = result["prediction"]
-                rating = utils.parse_rating(result)
-                y_pred.append(rating)
-            else:
-                y_pred.append(int(result["prediction"]))
+            y_pred.append(result["prediction"])
+            
         print(classification_report(y_true, y_pred, zero_division=1))
 
     def infer_all(self):
@@ -80,14 +75,15 @@ class Infer:
             results = utils.read_jsonl(f"{self.model_path}/results.jsonl")
             self.compute_metrix(results)
             return
+        
         results = []
         for ann in tqdm(self.anns):
             inputs = self.get_input(ann)
             output = self.infer_one(inputs)
-            ann["prediction"] = str(output)
+            ann["prediction"] = int(output)
             results.append(ann)
         
         utils.write_jsonl(results, f"{self.model_path}/results.jsonl")
         self.compute_metrix(results)
 
-Infer(model_name="critic_1211_more", step="470").infer_all()
+Infer(model_name="critic_1218", step="520").infer_all()

@@ -42,11 +42,11 @@ class ReplayBuffer:
 
     def insert(
         self,
-        critic_image,
-        critic_input,
         policy_output,
         policy_input,
         policy_image,
+        critic_image="",
+        critic_input="",
         **kwargs
     ):
         if self.critic_images is None:

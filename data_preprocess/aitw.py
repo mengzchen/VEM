@@ -112,14 +112,14 @@ class AITW:
         def process_ann(ann):
             response = self.gpt.get_score(ann)
             response = utils.parse_response(response)
-            ann["rating"], ann["explanation"] = response["rating"], response["explanation"]
+            ann["critic_output"], ann["critic_explanation"] = response["rating"], response["explanation"]
 
             conversations = [
                 {"from": "human", "value": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
                 {"from": "gpt", "value": str(ann["rating"])}
             ]
-            ann["critic_inputs"] = conversations
-            ann["critic_images"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
+            ann["critic_input"] = conversations
+            ann["critic_image"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
 
             return ann
 
@@ -186,7 +186,7 @@ class AITW:
 
     def get_rl_data(self):
         ann_rpath = f"data/aitw_anns/{self.part}_{self.split}.jsonl"
-        ann_wpath = f"data/aitw_anns/{self.date}/aitw_{self.split}_policy.jsonl"
+        ann_wpath = f"data/aitw_anns/{self.date}/{self.part}_{self.split}_policy.jsonl"
         anns = utils.read_jsonl(ann_rpath)
 
         for ann in tqdm(anns):
@@ -199,7 +199,7 @@ class AITW:
 
  
 
-aitw_data = AITW(split="val", part="general", date="1218")
+aitw_data = AITW(split="train", part="general", date="1218")
 aitw_data.get_unfold_data()
 # aitw_data.get_gpt_label()
 aitw_data.get_rl_data()

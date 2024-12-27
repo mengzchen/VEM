@@ -71,7 +71,7 @@ class DigiRLTrainer:
         device = self.accelerator.unwrap_model(self.agent.model).device
         
         messages = []
-        for critic_input, critic_images in zip(critic_inputs, critic_images):
+        for critic_input, critic_image in zip(critic_inputs, critic_images):
             messages.append([{
                 "role": "user",
                 "content": [
@@ -108,7 +108,7 @@ class DigiRLTrainer:
         q_values = [int(val) for val in q_values]
         q_values = torch.tensor(q_values, dtype=dtype, requires_grad=True).to(device)
 
-        q_values = q_values / 2
+        q_values = (q_values - 1.2) / 2
 
         policy_image_features = []
         for policy_image in policy_images:
@@ -271,6 +271,8 @@ def onpolicy_train_loop(
 
             logs.extend(trainer.update_policy(replay_buffer, is_validation=False, batch_size=batch_size))
 
+        results = trainer.infer(val_trajectories, batch_size, add_q_value=False)
+        val_trajectories = update_trajectory(val_trajectories, results)
         validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
         for d in val_trajectories:
             validation_buffer.insert(**d)
@@ -299,10 +301,10 @@ def eval_loop(
 
     result_wpath = os.path.join("checkpoints/results", f"{model_name}_results.jsonl")
 
-    position_anns = utils.read_jsonl("data/aitw_anns/general_val.jsonl")
+    position_anns = utils.read_jsonl(eval_path)
     position_dict = {}
     for ann in position_anns:
-        position_dict[f"{ann['ep_id']}_{ann['step_id']}"] = ann["annot_position"]
+        position_dict[f"{ann['ep_id']}_{ann['step_id']}"] = ann["position"]
 
     if not os.path.exists(result_wpath):
         trainer = DigiRLTrainer(
