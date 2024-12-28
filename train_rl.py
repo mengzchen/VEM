@@ -108,7 +108,7 @@ class DigiRLTrainer:
         q_values = [int(val) for val in q_values]
         q_values = torch.tensor(q_values, dtype=dtype, requires_grad=True).to(device)
 
-        q_values = (q_values - 1.2) / 2
+        q_values = q_values / 2
 
         policy_image_features = []
         for policy_image in policy_images:

@@ -9,12 +9,11 @@ policy_lm: './checkpoints/Auto-UI-Base'
 critic_lm: './checkpoints/critic_1218/merge-520'
 
 # hparams
-epochs: 10
-batch_size: 4
+epochs: 20
+batch_size: 3
 rollout_size: 16
 grad_accum_steps: 32
 warmup_iter: 0
-actor_epochs: 5 # 20
 lm_lr: 1e-6
 max_grad_norm: 0.01
 gamma: 0.5

@@ -1,6 +1,7 @@
 import utils
 from eval_tools.aitw import str_2_format
 from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
+from eval_tools.aitw import get_roll_type
 
 
 action_type_dict = {
@@ -44,21 +45,25 @@ def convert_policy_output_to_critic_input(output_text, image_rpath):
     return action, image_rpath
 
 scroll_map = {
-    "SCROLL_UP": [[0.8, 0.5], [0.2, 0.5]],
-    "SCROLL_DOWN": [[0.2, 0.5], [0.8, 0.5]],
-    "SCROLL_LEFT": [[0.5, 0.8], [0.5, 0.2]],
-    "SCROLL_RIGHT": [[0.5, 0.2], [0.5, 0.8]]
+    "up": [[0.8000, 0.5000], [0.2000, 0.5000]],
+    "down": [[0.2000, 0.5000], [0.8000, 0.5000]],
+    "left": [[0.5000, 0.8000], [0.5000, 0.2000]],
+    "right": [[0.5000, 0.2000], [0.5000, 0.8000]]
 }
 
 
 def extract_scroll(action):
-    if action["touch_point"] == scroll_map["SCROLL_UP"][0] and action["lift_point"] == scroll_map["SCROLL_UP"][1]:
+    if action["touch_point"] == action["lift_point"]:
+        return action
+    
+    scroll_type = get_roll_type(action["touch_point"], action["lift_point"])
+    if scroll_type == "up":
         action["action_type"] = "SCROLL_UP"
-    elif action["touch_point"] == scroll_map["SCROLL_DOWN"][0] and action["lift_point"] == scroll_map["SCROLL_DOWN"][1]:
+    elif scroll_type == "down":
         action["action_type"] = "SCROLL_DOWN"
-    elif action["touch_point"] == scroll_map["SCROLL_LEFT"][0] and action["lift_point"] == scroll_map["SCROLL_LEFT"][1]:
+    elif scroll_type == "left":
         action["action_type"] = "SCROLL_LEFT"
-    elif action["touch_point"] == scroll_map["SCROLL_RIGHT"][0] and action["lift_point"] == scroll_map["SCROLL_RIGHT"][1]:
+    elif scroll_type == "right":
         action["action_type"] = "SCROLL_RIGHT"
     else:
         return action

@@ -282,3 +282,24 @@ def compute_matrix(anns, position_dict):
 
     print(f"step succ rate: {str(step_succ_rate)} ({succ_step}/{step_num})")
     print(f"task succ rate: {str(task_succ_rate)} ({succ_task}/{task_num})")
+
+
+def get_roll_type(
+    drag_touch_yx,
+    drag_lift_yx,
+):
+    drag_delta_x, drag_delta_y = drag_lift_yx[0] - drag_touch_yx[0], drag_lift_yx[1] - drag_touch_yx[1]
+
+    # y axis
+    if drag_delta_y == 0:
+        if drag_delta_x < 0:
+            scroll = "up"
+        else:
+            scroll = "down"
+    elif drag_delta_x == 0:
+        if drag_delta_y < 0:
+            scroll = "left"
+        else:
+            scroll = "right"
+            
+    return scroll
