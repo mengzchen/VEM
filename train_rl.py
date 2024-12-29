@@ -7,7 +7,7 @@ from datetime import timedelta
 from accelerate import DistributedDataParallelKwargs, InitProcessGroupKwargs
 import utils
 
-from datasets.digirl_dataset import ReplayBuffer, DummyDataset
+from dataset.digirl_dataset import ReplayBuffer, DummyDataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import os
