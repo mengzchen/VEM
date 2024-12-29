@@ -2,14 +2,11 @@ import os
 import sys
 sys.path.append(os.getcwd())
 
-
-import utils
-from tqdm import tqdm
-import json
+import io
+from PIL import Image
 
 from data_preprocess.cloudgpt_aoai import get_chat_completion, get_message
-from prompt import prompt_score_system, prompt_score_user, prompt_negative_system, prompt_negative_user
-from data_preprocess.action_transfer import step_2_action
+from prompt import prompt_score_system, prompt_score_user
     
 
 class GPTScorer:
@@ -55,6 +52,49 @@ class GPTScorer:
         )
         
         return response.choices[0].message.content
+
+
+def process_image(image_path):
+    image = Image.open(image_path, 'r')
+    image = image.resize((image.width // 4, image.height // 4))
+    # Save to a BytesIO object (in-memory file) as PNG
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+
+    # Load it back from the BytesIO object
+    buffer.seek(0)
+    image_reloaded = Image.open(buffer)
+    return image_reloaded
+
+
+def call_gemini(client, system_msg, prompt, image_list, image_path):
+    if type(prompt) == list:
+        input_msg = [system_msg + "\n" + "=====Examples====="]
+        for i in range(len(image_list)-1):
+            input_msg += [
+                "\nScreenshot:",
+                process_image(image_list[i]),
+                prompt[i]
+            ]
+        input_msg += [
+            "=====Your Turn=====",
+            "\nScreenshot: ",
+            process_image(image_path),
+            prompt[-1]
+        ]
+        response = client.generate_content(
+           input_msg
+        )
+    else:
+        response = client.generate_content(
+            [
+                system_msg + "\n" + prompt,
+                process_image(image_path)
+            ]
+        )
+    response.resolve()
+    response_text = response.text
+    return response_text
 
 
 # from data_preprocess.prompt import test

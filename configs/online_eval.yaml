@@ -1,4 +1,6 @@
 model_name: cogagent
-model_path: xx
+model_path: checkpoints/cogagent-9b-20241220
 
-data_path: xx
+batch_size: 1
+data_path: data/aitw_anns/1218/general_val_policy.jsonl
+gemini_key: xx
