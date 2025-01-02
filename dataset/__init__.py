@@ -4,7 +4,7 @@ import utils
 
 class CogAgentDataset(Dataset):
     def __init__(self, config):
-        self.anns = utils.read_jsonl(config["model_path"])
+        self.anns = utils.read_jsonl(config["data_path"])
         self.query_format = "Task: {}\nHistory steps: {}\n(Platform: Mobile)\n(Answer in Action-Operation-Sensitive format.)\n"
 
 

@@ -1,3 +1,6 @@
+import os
+
+
 test ="""
 """
 prompt_score_system ="""As an expert in the field of GUI and reinforcement learning, you will receive complete screenshots and textual descriptions of interactions for a given task. You need to evaluate a specific step in terms of its value within the task chain, similar to what a value function does in reinforcement learning. Detailed criteria and standards are given below.
@@ -214,3 +217,67 @@ prompt_negative_user = """Task Requirements: {}
 Previous Action: {}
 Current Action and Screenshot: {}
 """
+
+prompt_gemini_cot = [
+"""Task: Open the settings.
+Q: What should I expect to see on the screenshot if I've opened the settings?
+A: I should expect to see I'm in the settings app. The screenshot shows the home screen of a mobile device, with various app icons displayed, including the settings app icon, but the settings app is not opened.
+Status: failure""", 
+"""Task: Find hotels in washington dc
+Q: What should I expect to see on the screenshot if I've searched for hotels in Washington, DC?
+A: I should expect to see I'm in a search results page for hotels in Washington, DC. The screenshot shows a Google search page with the search field populated with the query "hotels in washington dc" and a list of suggested searches related to hotels in Washington, DC, but it does not show any search results for hotels in Washington, DC.
+Status: failure""", 
+"""Task: What's a good restaurant in Portland?
+Q: What should I expect to see on the screenshot if I've searched for a good restaurant in Portland?
+A: I should expect to see I'm in a search results page for a good restaurant in Portland. The screenshot shows a Google search page with a search input field for "good restaurant in portland" and a map results preview showing business locations near Portland, like "Li Pigeon", "Portland City Grill", and "Higgins",
+Status: success""", 
+"""Task: What's on the menu at In-N-Out?
+Q: What should I expect to see on the screenshot if I've searched for the menu at In-N-Out?
+A: I should expect to see a menu page for In-N-Out, including product names, thumbnails and prices. The screenshot shows a Google search page with a search input field for "In-N-Out menu" and some page snippets of In-N-Out indicating potential menu items, but does not actually show the actual menu.
+Status: failure""", 
+"""Task: What's the news in Suriname?
+Q: What should I expect to see on the screenshot if I've searched for the news in Suriname?
+A: I should expect to see some news in Suriname, such as someone did something or some accident happens in Suriname. The screenshot shows a Google search page with a search input field for "Suriname news today" and some page snippets indicating potential news items, but does not actually show the news.
+Status: failure""", 
+"""Task: What's the weather like in Chicago?
+Q: What should I expect to see on the screenshot if I've searched for the weather in Chicago?
+A: I should expect to see some exact values like temperature, humidity, wind speed, and weather condition in Chicago. The screenshot shows a Google search page with a search input field for "weather in Chicago" and some page snippets indicating potential weather information. Although one page snippet contains some weather information, the information is not comprehensive enough to determine the weather in Chicago.
+Status: failure""", 
+"""Task: Set an alarm for 6pm.
+Q: What should I expect to see on the screenshot if I've set an alarm for 6pm?
+A: I should expect to see some alarms including a 6pm alarm activated in the clock app. The screenshot shows an attempt to set an alarm for 6pm in the clock app, but the alarm is not set yet.
+Status: failure""", 
+"""Task: What's the news in French today?
+Q: What should I expect to see on the screenshot if I've searched for the news in French today?
+A: I should expect to see some news in French today, such as someone did something or some accident happens in French today. The screenshot shows I'm in the website france24.com but blocked with a cookie consent banner.
+Status: failure""", 
+"""Task: What's the news in French today?
+Q: What should I expect to see on the screenshot if I've searched for the news in French today?
+A: I should expect to see some news in French today, such as someone did something or some accident happens in French today. The screenshot shows I'm in the website france24.com and can see the news, like something about the Olympic flame.
+Status: success"""]
+
+prompt_gemini_current_task = """Task: {}
+Respond in this format:
+Q: What should I expect to see on the screenshot if I've <repeat the task>?
+A: I should expect to see <first expectation, then what's in the given screenshot.>
+Status: success or failure (don't return anything else)
+Start with "Q:"."""
+
+def build_prompt_general(task):
+   system_msg = """You're an expert in evaluating whether the Screenshot successfully completes the Task."""
+   prompt = prompt_gemini_cot + [prompt_gemini_current_task.format(task)]
+   
+   cot_image_list = [
+      "data/gemini_cot_images/screenshot_menu.png", 
+      "data/gemini_cot_images/screenshot_hotel.png", 
+      "data/gemini_cot_images/screenshot_restaurant.png",
+      "data/gemini_cot_images/screenshot_foodmenu.png", 
+      "data/gemini_cot_images/screenshot_news.png", 
+      "data/gemini_cot_images/screenshot_weather.png", 
+      "data/gemini_cot_images/screenshot_alarm.png", 
+      "data/gemini_cot_images/screenshot_frenchnews_blocked.png", 
+      "data/gemini_cot_images/screenshot_frenchnews_okay.png", 
+      ""
+   ]
+    
+   return system_msg, prompt, cot_image_list
