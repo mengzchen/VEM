@@ -3,4 +3,8 @@ model_path: checkpoints/cogagent-9b-20241220
 
 batch_size: 1
 data_path: data/aitw_anns/1218/general_val_policy.jsonl
+
+image_save_dir: ./remote_images
+appium_server_url: http://10.150.140.70:4723
+max_steps: 10
 gemini_key: xx

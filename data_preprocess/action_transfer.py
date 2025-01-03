@@ -19,31 +19,6 @@ action_type_dict = {
 }
 
 
-def convert_policy_output_to_critic_input(output_text, image_rpath):
-    # TODO modify the format
-    actor_output = str_2_format(output_text)
-
-    if actor_output["action_type"] == "DUAL_POINT":
-        touch_point = actor_output["touch_point"]
-        lift_point = actor_output["lift_point"]
-        click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
-
-        image_rpath = utils.add_visilize2screenshot(
-            image_rpath=image_rpath,
-            action_type="click",
-            action_params=click_point
-        )
-
-        click_point = [f"{item:.2f}" for item in click_point]
-        click_point = "({},{})".format(click_point[0], click_point[1])
-        action = f"action_type is click, click_point is {click_point}."
-    elif actor_output["action_type"] == "TYPE":
-        action = f"action_type is type, typed_text is {actor_output['typed_text']}."
-    else:
-        action = "action_type is {}.".format(actor_output["action_type"].replace("_", " ").lower())
-
-    return action, image_rpath
-
 scroll_map = {
     "up": [[0.8000, 0.5000], [0.2000, 0.5000]],
     "down": [[0.2000, 0.5000], [0.8000, 0.5000]],
