@@ -6,7 +6,7 @@ import io
 from PIL import Image
 
 from data_preprocess.cloudgpt_aoai import get_chat_completion, get_message
-from prompt import prompt_score_system, prompt_score_user
+from data_preprocess.prompt import prompt_score_system, prompt_score_user
     
 
 class GPTScorer:

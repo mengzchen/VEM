@@ -2,6 +2,8 @@ import google.generativeai as genai
 import numpy as np
 from PIL import Image
 import re
+from tqdm import tqdm
+import torch
 
 from data_preprocess.prompt import build_prompt_general
 from data_preprocess.gpt import call_gemini
@@ -46,3 +48,55 @@ class EndResultEvaluator:
 class AndroidEnv:
     def __init__(self, config):
         self.evaluator = EndResultEvaluator(config)
+    
+
+    def reset(self):
+        pass
+
+    def step(self):
+        pass
+
+
+def interact_environment(agent, env, dataset):
+    anns = []
+    for data in tqdm(dataset):
+        done = False
+        ann = []
+        
+        observe = env.reset()
+        
+        screenshot = observe["image_feature"]
+                
+        steps = 0
+        while not done:
+            steps += 1
+                
+            action = agent.get_action(observe, screenshot)
+            
+            env_return = env.step(action)
+            
+            if env_return is None:
+                done = True
+                continue
+
+            obs_dict, r, done = env_return
+            next_screenshot = obs_dict["image_feature"]
+            next_observe = obs_dict["prompt"]
+            if not hasattr(agent, "critic"):
+                ann.append({
+                    "observation": observe, 
+                    "next_observation": next_observe, 
+                    "image_features": None, 
+                    "image_path": obs_dict["image_path"], 
+                    "next_image_features": None, 
+                    "task": obs_dict["task"],
+                    "reward": r, 
+                    "done": done, 
+                    "action": action})
+                observe = obs_dict
+            
+            screenshot = next_screenshot
+        
+    anns.append(ann)  
+
+    return anns

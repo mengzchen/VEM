@@ -14,25 +14,16 @@ class CogAgentDataset(Dataset):
 
     def __getitem__(self, idx):
         ann = self.anns[idx]
-        history = ""
-        for index, (grounded_op_func, action) in enumerate(zip(history_grounded_op_funcs, history_actions)):
-            history += f"\n{index}. {grounded_op_func}\t{action}"
-        text = self.query_format.format(ann["task"], history)
+        # TODO no history
+        text = self.query_format.format(ann["task"], "")
         
-        return text, image
+        return text
 
 
 def create_dataset(config):
     if config["model_name"] == "cogagent":
         dataset = CogAgentDataset(config)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=config["batch_size"],
-            shuffle=False,
-            drop_last=False,
-        )
-
-        return dataloader
+        return dataset
     else:
         raise NotImplementedError(f"dataset == {dataset}")
 

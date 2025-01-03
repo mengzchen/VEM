@@ -6,39 +6,21 @@ from accelerate import DistributedDataParallelKwargs, Accelerator
 
 import utils
 from dataset import create_dataset
-from models import create_model
-from eval_tools.androidenv import AndroidEnv
+from models import create_agent
+from eval_tools.androidenv import AndroidEnv, interact_environment
 
 
 
 
-def evaluation(config, model, dataloader, env):
-    all_trajectories = []
-    for i in range(eval_iterations):
-        trajectories = batch_interact_environment(
-            agent = agent,
-            env = env,
-            num_trajectories= rollout_size,\
-            accelerator = accelerator,\
-            gamma = gamma,
-            iter=i
-        )
-        if accelerator.is_main_process:
-            info = {"iteration": i,\
-                    "rollout.mean": np.mean([d[0]["trajectory_reward"] if len(d) > 0 else 0 for d in trajectories]),\
-                    "rollout.max": np.max([d[0]["trajectory_reward"] if len(d) > 0 else 0 for d in trajectories]),\
-                    "rollout.min": np.min([d[0]["trajectory_reward"] if len(d) > 0 else 0 for d in trajectories]),\
-                    "walltime": time.time()}
-            all_trajectories += trajectories
-            
-            torch.save(all_trajectories, os.path.join(save_path, 'trajectories_eval.pt'))
-            time.sleep(15)
-        else:
-            info = {}
-        accelerator.wait_for_everyone()
-        all_trajectories = torch.load(os.path.join(save_path, 'trajectories_eval.pt'))
-        if use_wandb and accelerator.is_main_process:
-            wandb.log(info)
+def evaluation(agent, dataset, env):
+    # TODO the eval iter
+    anns = interact_environment(
+        agent=agent,
+        env=env,
+        dataset=dataset
+    )
+    
+    return anns
 
 
 def main(config):
@@ -54,19 +36,15 @@ def main(config):
 
     env = AndroidEnv(config)
 
-    print("### Creating model")
-    model, tokenizer = create_model(config)
-
-    model.eval()
-
-    print("### Total Params: ", sum(p.numel() for p in model.parameters()))
-
+    print("### Creating agent")
+    agent = create_agent(config)
+    
     print("### Creating datasets")
-    dataloader = create_dataset(config)
+    dataset = create_dataset(config)
 
     print("### Start evaluating")
 
-    predictions = evaluation(config, model, dataloader, env)
+    predictions = evaluation(agent, dataset, env)
 
     utils.write_jsonl(predictions, output_path)
     print("### Prediction Results Save To: ", output_path)
@@ -82,4 +60,4 @@ if __name__ == "__main__":
     with open(args.config, 'r') as file:
         config = yaml.safe_load(file)
 
-    main(args, config)
+    main(config)
