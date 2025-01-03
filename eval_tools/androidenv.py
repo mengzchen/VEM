@@ -76,45 +76,29 @@ class EndResultEvaluator:
         self.threshold = 0.001 * 255**2
 
 
-    def __call__(self, last_two_images, intent):
-        # TODO if need to get the two images
-        with Image.open(last_two_images[0]) as img1_src, Image.open(last_two_images[1]) as img2_src:   
-            img1 = np.array(img1_src)
-            img2 = np.array(img2_src)
-        if np.mean((img1.astype(np.float64) - img2.astype(np.float64))**2) < self.threshold:
-            print("skipping evaluation due to same images")
-            return 0
-        
-        self.img_matrix = np.expand_dims(img2, axis = 0)
-        
-        eval_res = self._evaluate(intent, last_two_images[1])
-            
-        del img1, img2
-
-        return eval_res
-
-    def _evaluate(self, intent, image_path) -> bool:
+    def __call__(self, image_path, intent):
         system_msg, prompt, cot_image_list = build_prompt_general(intent)
         
         response_text = call_gemini(self.client, system_msg, prompt, cot_image_list, image_path)
 
         answer = re.search(r'Status:\s*(\w+)', response_text).group(1) if re.search(r'Status:\s*(\w+)', response_text) else None
+        
         if answer is not None and "success" in answer.lower():
             return 1
         else:
             return 0
-
+        
 
 class AndroidEnv:
-    def __init__(self, config=None):
-        # self.evaluator = EndResultEvaluator(config)
+    def __init__(self, config):
+        self.evaluator = EndResultEvaluator(config)
 
-        self.image_save_dir = "temp"
+        self.image_save_dir = config["image_save_dir"]
         if not os.path.exists(self.image_save_dir):
             os.makedirs(self.image_save_dir)
         self.image_id = str(time.time())
 
-        self.appium_server_url = "http://10.150.140.70:4723"
+        self.appium_server_url = config["appium_server_url"]
         capabilities = dict(
             platformName='Android',
             automationName='uiautomator2',
@@ -128,7 +112,6 @@ class AndroidEnv:
         )
         self.options = UiAutomator2Options().load_capabilities(capabilities)
         self.driver = webdriver.Remote(self.appium_server_url, options=self.options)
-        print("connected!")
         self.max_steps = 10
         screen_size = self.driver.get_window_size()
         self.screen_size = (screen_size["width"], screen_size["height"])
@@ -141,15 +124,13 @@ class AndroidEnv:
         screenshot_str = self.driver.get_screenshot_as_base64()
         imgdata = base64.b64decode(screenshot_str)
         image =  Image.open(BytesIO(imgdata))
+        image_wpath = os.path.join(self.image_save_dir, f"{self.image_id}_{self.step_num}.png")
+        image.save(image_wpath)
         
-        image.save(os.path.join(self.image_save_dir, f"{self.image_id}_{self.step_num}.png"))
-        
-        return {
-            "image_path": os.path.join(self.image_save_dir, f"{self.image_id}_{self.step_num}.png")
-        }
-            
+        return image_wpath
 
-    def step(self, raw_action):
+
+    def step(self, raw_action, task):
         action = autoui_translate_action(raw_action)
         self.history.append(action)
         self.step_num += 1
@@ -185,41 +166,37 @@ class AndroidEnv:
         else:
             raise Exception(f"Unknown action type: {action.action_type}")
         
-        screenshot = self.get_obs()
-        # result = self.evaluator(
-        #     [
-        #         os.path.join(self.image_save_dir, f"{self.image_id}_{self.steps-1}.png"), 
-        #         os.path.join(self.image_save_dir, f"{self.image_id}_{self.steps}.png")
-        #     ], 
-        #     self.current_task
-        # )
+        screenshot_path = self.get_obs()
+
+        result = self.evaluator(
+            screenshot_path,
+            task
+        )
         
-        # if result >= 1 or self.terminated:
-        #     self.driver.quit()
-        #     self.terminate()
+        if result >= 1 or self.terminated:
+            self.driver.quit()
         
-        return screenshot # result, self.terminated
+        return screenshot_path, result
 
 
 def interact_environment(agent, env, dataset):
+    # TODO dodododododo
     anns = []
     for data in tqdm(dataset):
         done = False
         ann = []
         
         observe = env.reset()
-        
-        screenshot = observe["image_feature"]
                 
         steps = 0
         while not done:
             steps += 1
                 
-            action = agent.get_action(observe, screenshot)
+            action = agent.get_action(observe, observe["screenshot_path"])
             
-            env_return = env.step(action)
+            image = env.step(action)
             
-            if env_return is None:
+            if env_return:
                 done = True
                 continue
 

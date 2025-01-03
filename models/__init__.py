@@ -18,5 +18,8 @@ class CogAgent:
 def create_agent(config):
     if config["model_name"] == "cogagent":
         return CogAgent(config)
+    # elif config["model_name"] == "autoui":
+    #     from models.autoui_agent import AutoUIAgent
+    #     return AutoUIAgent
     else:
         assert f"not support such model: {config['model_name']}"

@@ -11,9 +11,7 @@ from eval_tools.androidenv import AndroidEnv, interact_environment
 
 
 
-
 def evaluation(agent, dataset, env):
-    # TODO the eval iter
     anns = interact_environment(
         agent=agent,
         env=env,

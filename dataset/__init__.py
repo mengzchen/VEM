@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import utils
 
 
@@ -15,6 +15,7 @@ class CogAgentDataset(Dataset):
     def __getitem__(self, idx):
         ann = self.anns[idx]
         # TODO no history
+
         text = self.query_format.format(ann["task"], "")
         
         return text

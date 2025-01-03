@@ -28,12 +28,13 @@ class AutoUIAgent(torch.nn.Module):
         self.accelerator = accelerator
         self.max_new_tokens = max_new_tokens
     
+
     def prepare(self):
         self.model = self.accelerator.prepare(self.model)
         self.critic = self.accelerator.prepare(self.critic)
 
+
     def get_log_prob(self, text, image_features, target):
-        # 
         image_features = image_features[..., -1408:]
         text_ids = self.tokenizer(text, return_tensors='pt', padding=True, max_length=512, truncation = True).to(self.device)
         target_ids = self.tokenizer(target, return_tensors='pt', padding=True, max_length=512, truncation = True).to(self.device)
@@ -49,6 +50,7 @@ class AutoUIAgent(torch.nn.Module):
         selected_prediction_probs = torch.clamp(selected_prediction_probs, min=0.001, max=0.99)
         
         return torch.log(selected_prediction_probs) * target_ids["attention_mask"]
+    
     
     def get_action(self, texts, image_features):
         image_features = image_features[..., -1408:]
@@ -73,20 +75,15 @@ class AutoUIAgent(torch.nn.Module):
 
 class ImageFeatureExtractor:
     def __init__(self):
-        # Set device based on CUDA availability
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        
-        # Initialize and load the BLIP2 model and processor
         self.model = Blip2Model.from_pretrained("./checkpoints/blip2-opt-2.7b").to(self.device)
         self.processor = AutoProcessor.from_pretrained("./checkpoints/blip2-opt-2.7b")
 
     def to_feat(self, image_path: str):
         with torch.no_grad():
             image = Image.open(image_path)
-            # Preprocess the image and move to the correct device
             inputs = self.processor(images=image, return_tensors="pt").to(self.device)
             
-            # Get the image features from the model
             image_features = self.model.get_image_features(**inputs).pooler_output[0]
             image_features = image_features.detach().cpu()
             
