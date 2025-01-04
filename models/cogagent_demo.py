@@ -65,9 +65,9 @@ def preprocess_messages(history, img_path):
 
 
 @spaces.GPU()
-def predict(history, max_length, img_path, output_dir):
+def predict(history, img_path):
+    output_dir = "./cogagent_images"
     stop_event.clear()
-
     prev_len = len(history)
 
     query, image = preprocess_messages(history, img_path)
@@ -146,9 +146,6 @@ def main():
     parser.add_argument("--host", default="0.0.0.0", help="Host IP for the server.")
     parser.add_argument("--port", type=int, default=7860, help="Port for the server.")
     parser.add_argument("--model_dir", default="checkpoints/cogagent-9b-20241220", help="Path or identifier of the model.")
-    parser.add_argument("--format_key", default="action_op_sensitive", help="Key to select the prompt format.")
-    parser.add_argument("--platform", default="Mobile", help="Platform information string.")
-    parser.add_argument("--output_dir", default="cogagent_images", help="Directory to save annotated images.")
     args = parser.parse_args()
 
     global tokenizer, model
@@ -159,7 +156,7 @@ def main():
 
     with gr.Blocks(analytics_enabled=False) as demo:
         with gr.Row():
-            img_path = gr.Image(label="Upload a Screenshot", type="filepath", height=400)
+            image_path = gr.Image(label="Upload a Screenshot", type="filepath", height=400)
             output_img = gr.Image(type="filepath", label="Annotated Image", height=400, interactive=False)
 
         with gr.Row():
@@ -168,18 +165,15 @@ def main():
                 task = gr.Textbox(show_label=True, placeholder="Input...", label="Task")
                 submitBtn = gr.Button("Submit")
             with gr.Column(scale=1):
-                max_length = gr.Slider(0, 8192, value=1024, step=1.0, label="Maximum length", interactive=True)
                 undo_last_round_btn = gr.Button("Back to Last Round")
                 clear_history_btn = gr.Button("Clear All History")
-
-                # Interrupt procedure
                 stop_now_btn = gr.Button("Stop Now", variant="stop")
 
         submitBtn.click(
             user, [task, chatbot], [task, chatbot], queue=False
         ).then(
             predict,
-            [chatbot, img_path],
+            [chatbot, image_path],
             [chatbot, output_img],
             queue=True
         )
