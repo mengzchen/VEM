@@ -16,19 +16,6 @@ import spaces
 stop_event = Event()
 
 def draw_boxes_on_image(image: Image.Image, boxes: List[List[float]], save_path: str):
-    """
-    Draws red bounding boxes on the given image and saves it.
-
-    Parameters:
-    - image (PIL.Image.Image): The image on which to draw the bounding boxes.
-    - boxes (List[List[float]]): A list of bounding boxes, each defined as [x_min, y_min, x_max, y_max].
-      Coordinates are expected to be normalized (0 to 1).
-    - save_path (str): The path to save the updated image.
-
-    Description:
-    Each box coordinate is a fraction of the image dimension. This function converts them to actual pixel
-    coordinates and draws a red rectangle to mark the area. The annotated image is then saved to the specified path.
-    """
     draw = ImageDraw.Draw(image)
     for box in boxes:
         x_min = int(box[0] * image.width)
@@ -39,151 +26,48 @@ def draw_boxes_on_image(image: Image.Image, boxes: List[List[float]], save_path:
     image.save(save_path)
 
 
-def preprocess_messages(history, img_path):
-    history_step = []
-    for task, model_msg in history:
-        grounded_pattern = r"Grounded Operation:\s*(.*)"
-        matches_history = re.search(grounded_pattern, model_msg)
-        if matches_history:
-            grounded_operation = matches_history.group(1)
-            history_step.append(grounded_operation)
-
-    history_str = "\nHistory steps: "
-    if history_step:
-        for i, step in enumerate(history_step):
-            history_str += f"\n{i}. {step}"
-
-    if history:
-        task = history[-1][0]
-    else:
-        task = "No task provided"
-
-    query = f"Task: {task}{history_str}\n(Platform: Mobile)\n(Answer in Action-Operation-Sensitive format.)\n"
-    image = Image.open(img_path).convert("RGB")
-
-    return query, image
-
-
 @spaces.GPU()
-def predict(history, img_path):
-    output_dir = "./cogagent_images"
+def predict(text, image):
     stop_event.clear()
-    prev_len = len(history)
 
-    query, image = preprocess_messages(history, img_path)
     inputs = tokenizer.apply_chat_template(
-        [{"role": "user", "image": image, "content": query}],
+        [{"role": "user", "image": image, "content": text}],
         add_generation_prompt=True,
         tokenize=True,
         return_tensors="pt",
         return_dict=True,
     ).to(model.device)
-    streamer = TextIteratorStreamer(
-        tokenizer, timeout=60, skip_prompt=True, skip_special_tokens=True
-    )
+    
     generate_kwargs = {
         "input_ids": inputs["input_ids"],
         "attention_mask": inputs["attention_mask"],
         "position_ids": inputs["position_ids"],
         "images": inputs["images"],
-        "streamer": streamer,
         "max_length": 256,
         "do_sample": True,
         "top_k": 1,
     }
-    t = Thread(target=model.generate, kwargs=generate_kwargs)
-    t.start()
-    with torch.no_grad():
-        for new_token in streamer:
-            if stop_event.is_set():
-                while len(history) > prev_len:
-                    history.pop()
-                yield history, None
-                return
-
-            if new_token:
-                history[-1][1] += new_token
-            yield history, None
-
-
-    response = history[-1][1]
-    box_pattern = r"box=\[\[?(\d+),(\d+),(\d+),(\d+)\]?\]"
-    matches = re.findall(box_pattern, response)
-    if matches:
-        boxes = [[int(x) / 1000 for x in match] for match in matches]
-        os.makedirs(output_dir, exist_ok=True)
-        base_name = os.path.splitext(os.path.basename(img_path))[0]
-        round_num = sum(1 for (u, m) in history if u and m)
-        output_path = os.path.join(output_dir, f"{base_name}_{round_num}.png")
-        image = Image.open(img_path).convert("RGB")
-        draw_boxes_on_image(image, boxes, output_path)
-        yield history, output_path
-    else:
-        yield history, None
-
-
-def user(task, history):
-    return "", history + [[task, ""]]
-
-
-def undo_last_round(history, output_img):
-    if history:
-        history.pop()
-    return history, None
-
-
-def clear_all_history():
-    return None, None
-
-
-def stop_now():
-    stop_event.set()
-    return gr.update(), gr.update()
+    response = model.generate(generate_kwargs)
+    
+    return response
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="0.0.0.0", help="Host IP for the server.")
-    parser.add_argument("--port", type=int, default=7860, help="Port for the server.")
-    parser.add_argument("--model_dir", default="checkpoints/cogagent-9b-20241220", help="Path or identifier of the model.")
-    args = parser.parse_args()
-
     global tokenizer, model
-    tokenizer = AutoTokenizer.from_pretrained(args.model_dir, trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_dir, torch_dtype=torch.bfloat16, trust_remote_code=True, device_map="auto"
-    ).eval()
+    model_dir = "checkpoints/cogagent-9b-20241220"
+    tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(model_dir, torch_dtype=torch.bfloat16, trust_remote_code=True, device_map="auto").eval()
 
-    with gr.Blocks(analytics_enabled=False) as demo:
-        with gr.Row():
-            image_path = gr.Image(label="Upload a Screenshot", type="filepath", height=400)
-            output_img = gr.Image(type="filepath", label="Annotated Image", height=400, interactive=False)
+    demo = gr.Interface(
+        fn=predict,
+        inputs=[
+            gr.Textbox(label='Input Text', placeholder='Please enter text prompt below and press ENTER.'),
+            gr.Image(type="filepath", label="Image Prompt", value=None),
+        ],
+        outputs="text"
+    )
 
-        with gr.Row():
-            with gr.Column(scale=2):
-                chatbot = gr.Chatbot(height=300)
-                task = gr.Textbox(show_label=True, placeholder="Input...", label="Task")
-                submitBtn = gr.Button("Submit")
-            with gr.Column(scale=1):
-                undo_last_round_btn = gr.Button("Back to Last Round")
-                clear_history_btn = gr.Button("Clear All History")
-                stop_now_btn = gr.Button("Stop Now", variant="stop")
-
-        submitBtn.click(
-            user, [task, chatbot], [task, chatbot], queue=False
-        ).then(
-            predict,
-            [chatbot, image_path],
-            [chatbot, output_img],
-            queue=True
-        )
-
-        undo_last_round_btn.click(undo_last_round, [chatbot, output_img], [chatbot, output_img], queue=False)
-        clear_history_btn.click(clear_all_history, None, [chatbot, output_img], queue=False)
-        stop_now_btn.click(stop_now, None, [chatbot, output_img], queue=False)
-
-    demo.queue()
-    demo.launch(server_name=args.host, server_port=args.port, share=True, show_error=True)
+    demo.launch(share=True, show_error=True)
 
 
 if __name__ == "__main__":

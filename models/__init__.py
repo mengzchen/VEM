@@ -21,5 +21,5 @@ def create_agent(config):
     else:
         assert f"not support such model: {config['model_name']}"
 
-test_client = CogAgent(config={"agent_url": "https://325578253987c92323.gradio.live"})
+test_client = CogAgent(config={"agent_url": "https://4c35676d9d886ed5ca.gradio.live"})
 test_client.get_action(observation={"task": "search the weather in Beijing", "image_path": "images/aitw_images/general/56622825824867794_0.png"})
