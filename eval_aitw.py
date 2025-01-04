@@ -2,7 +2,6 @@ import argparse
 import yaml
 import json
 import os
-from accelerate import DistributedDataParallelKwargs, Accelerator
 
 import utils
 from dataset import create_dataset
@@ -25,10 +24,6 @@ def main(config):
     print("config:", json.dumps(config))
     output_path = os.path.join("checkpoints/results/", f"{config['model_name']}.jsonl")
     print("output_path: ", output_path)
-
-    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
-    accelerator = Accelerator(kwargs_handlers=[ddp_kwargs])
-    device = accelerator.device
 
     print("### build android env")
 

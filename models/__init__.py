@@ -1,18 +1,15 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
+import gradio_client
+from gradio_client import Client, file
+
 
 class CogAgent:
     def __init__(self, config):
-        self.tokenizer = AutoTokenizer.from_pretrained(config["model_path"], trust_remote_code=True)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            config["model_path"],
-            torch_dtype=torch.bfloat16,
-            trust_remote_code=True
-        )
-        
-
-    def get_action(self):
-        pass
+        self.client = Client(config["agent_url"])
+    
+    def get_action(self, observation):
+        text = f'What steps do I need to take to "{observation['task']}"?(with grounding)'
+        out = self.client.predict(history=[], img_path=observation["image_path"], api_name="/predict")
+        return out
 
 
 def create_agent(config):
@@ -23,3 +20,6 @@ def create_agent(config):
     #     return AutoUIAgent
     else:
         assert f"not support such model: {config['model_name']}"
+
+test_client = CogAgent(config={"agent_url": "https://3d1c86fc712d52487d.gradio.live"})
+test_client.get_action(observation={"task": "search the weather in Beijing", "image_path": "images/aitw_images/general/56622825824867794_0.png"})

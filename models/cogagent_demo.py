@@ -39,7 +39,7 @@ def draw_boxes_on_image(image: Image.Image, boxes: List[List[float]], save_path:
     image.save(save_path)
 
 
-def preprocess_messages(history, img_path, platform_str, format_str):
+def preprocess_messages(history, img_path):
     history_step = []
     for task, model_msg in history:
         grounded_pattern = r"Grounded Operation:\s*(.*)"
@@ -58,20 +58,19 @@ def preprocess_messages(history, img_path, platform_str, format_str):
     else:
         task = "No task provided"
 
-    query = f"Task: {task}{history_str}\n{platform_str}{format_str}"
+    query = f"Task: {task}{history_str}\n(Platform: Mobile)\n(Answer in Action-Operation-Sensitive format.)\n"
     image = Image.open(img_path).convert("RGB")
+
     return query, image
 
 
 @spaces.GPU()
-def predict(history, max_length, img_path, platform_str, format_str, output_dir):
-    # Reset the stop_event at the start of prediction
+def predict(history, max_length, img_path, output_dir):
     stop_event.clear()
 
-    # Remember history length before this round (for rollback if stopped)
     prev_len = len(history)
 
-    query, image = preprocess_messages(history, img_path, platform_str, format_str)
+    query, image = preprocess_messages(history, img_path)
     inputs = tokenizer.apply_chat_template(
         [{"role": "user", "image": image, "content": query}],
         add_generation_prompt=True,
@@ -88,7 +87,7 @@ def predict(history, max_length, img_path, platform_str, format_str, output_dir)
         "position_ids": inputs["position_ids"],
         "images": inputs["images"],
         "streamer": streamer,
-        "max_length": max_length,
+        "max_length": 256,
         "do_sample": True,
         "top_k": 1,
     }
@@ -96,10 +95,7 @@ def predict(history, max_length, img_path, platform_str, format_str, output_dir)
     t.start()
     with torch.no_grad():
         for new_token in streamer:
-            # Check if stop event is set
             if stop_event.is_set():
-                # Stop generation immediately
-                # Rollback the last round user input
                 while len(history) > prev_len:
                     history.pop()
                 yield history, None
@@ -141,32 +137,19 @@ def clear_all_history():
 
 
 def stop_now():
-    # Set the stop event to interrupt generation
     stop_event.set()
-    # Returning no changes here, the changes to history and output_img are handled in predict
     return gr.update(), gr.update()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CogAgent Gradio Demo")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="0.0.0.0", help="Host IP for the server.")
     parser.add_argument("--port", type=int, default=7860, help="Port for the server.")
     parser.add_argument("--model_dir", default="checkpoints/cogagent-9b-20241220", help="Path or identifier of the model.")
     parser.add_argument("--format_key", default="action_op_sensitive", help="Key to select the prompt format.")
-    parser.add_argument("--platform", default="Mac", help="Platform information string.")
+    parser.add_argument("--platform", default="Mobile", help="Platform information string.")
     parser.add_argument("--output_dir", default="cogagent_images", help="Directory to save annotated images.")
     args = parser.parse_args()
-
-    format_dict = {
-        "action_op_sensitive": "(Answer in Action-Operation-Sensitive format.)",
-        "status_plan_action_op": "(Answer in Status-Plan-Action-Operation format.)",
-        "status_action_op_sensitive": "(Answer in Status-Action-Operation-Sensitive format.)",
-        "status_action_op": "(Answer in Status-Action-Operation format.)",
-        "action_op": "(Answer in Action-Operation format.)"
-    }
-
-    if args.format_key not in format_dict:
-        raise ValueError(f"Invalid format_key. Available keys: {list(format_dict.keys())}")
 
     global tokenizer, model
     tokenizer = AutoTokenizer.from_pretrained(args.model_dir, trust_remote_code=True)
@@ -174,14 +157,7 @@ def main():
         args.model_dir, torch_dtype=torch.bfloat16, trust_remote_code=True, device_map="auto"
     ).eval()
 
-    platform_str = f"(Platform: {args.platform})\n"
-    format_str = format_dict[args.format_key]
-
     with gr.Blocks(analytics_enabled=False) as demo:
-        gr.HTML("<h1 align='center'>CogAgent Demo</h1>")
-        gr.HTML(
-            "<p align='center' style='color:red;'>This Demo is for learning and communication purposes only. Users must assume responsibility for the risks associated with AI-generated planning and operations.</p>")
-
         with gr.Row():
             img_path = gr.Image(label="Upload a Screenshot", type="filepath", height=400)
             output_img = gr.Image(type="filepath", label="Annotated Image", height=400, interactive=False)
@@ -203,8 +179,7 @@ def main():
             user, [task, chatbot], [task, chatbot], queue=False
         ).then(
             predict,
-            [chatbot, max_length, img_path, gr.State(platform_str), gr.State(format_str),
-             gr.State(args.output_dir)],
+            [chatbot, img_path],
             [chatbot, output_img],
             queue=True
         )
