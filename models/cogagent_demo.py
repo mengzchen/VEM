@@ -29,7 +29,7 @@ def draw_boxes_on_image(image: Image.Image, boxes: List[List[float]], save_path:
 @spaces.GPU()
 def predict(text, image):
     stop_event.clear()
-
+    print(image)
     inputs = tokenizer.apply_chat_template(
         [{"role": "user", "image": image, "content": text}],
         add_generation_prompt=True,
