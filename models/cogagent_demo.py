@@ -183,7 +183,7 @@ def main():
         stop_now_btn.click(stop_now, None, [chatbot, output_img], queue=False)
 
     demo.queue()
-    demo.launch(server_name=args.host, server_port=args.port, share=True)
+    demo.launch(server_name=args.host, server_port=args.port, share=True, show_error=True)
 
 
 if __name__ == "__main__":
