@@ -4,4 +4,5 @@
 # squeue -u x_wenyi -o "%.10i %.9P %.20j %.8u %.2t %.10M %.6D %R"
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
 
-python3 eval_aitw.py --config configs/online_eval.yaml
+python models/cogagent_demo.py
+# python3 eval_aitw.py --config configs/online_eval.yaml

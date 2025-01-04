@@ -14,3 +14,4 @@ tokenizers==0.20.3
 scikit-learn
 omegaconf
 hydra
+Appium-Python-Client

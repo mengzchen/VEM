@@ -259,7 +259,6 @@ def compute_matrix(anns, position_dict):
             position = position_dict[f"{step['ep_id']}_{step['step_id']}"]
             annot_position = np.array([position[i:i + 4] for i in range(0, len(position), 4)])
             
-            # TODO scroll problem
             check_match = check_actions_match(
                 pred["touch_point"], 
                 pred["lift_point"],

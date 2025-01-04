@@ -42,7 +42,7 @@ def main(config):
 
     print("### Start evaluating")
 
-    predictions = evaluation(agent, dataset, env)
+    predictions = evaluation(agent, dataset, env=None)
 
     utils.write_jsonl(predictions, output_path)
     print("### Prediction Results Save To: ", output_path)
