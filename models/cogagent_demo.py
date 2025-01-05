@@ -1,19 +1,12 @@
-import argparse
-import os
-import re
-import torch
-from threading import Thread, Event
 from PIL import Image, ImageDraw
 import gradio as gr
 from transformers import (
     AutoTokenizer,
-    AutoModelForCausalLM,
-    TextIteratorStreamer,
+    AutoModelForCausalLM
 )
 from typing import List
 import spaces
 
-stop_event = Event()
 
 def draw_boxes_on_image(image: Image.Image, boxes: List[List[float]], save_path: str):
     draw = ImageDraw.Draw(image)
@@ -27,9 +20,8 @@ def draw_boxes_on_image(image: Image.Image, boxes: List[List[float]], save_path:
 
 
 @spaces.GPU()
-def predict(text, image):
-    stop_event.clear()
-    print(image)
+def predict(text, image_path):
+    image = Image.open(image_path)
     inputs = tokenizer.apply_chat_template(
         [{"role": "user", "image": image, "content": text}],
         add_generation_prompt=True,
@@ -38,16 +30,11 @@ def predict(text, image):
         return_dict=True,
     ).to(model.device)
     
-    generate_kwargs = {
-        "input_ids": inputs["input_ids"],
-        "attention_mask": inputs["attention_mask"],
-        "position_ids": inputs["position_ids"],
-        "images": inputs["images"],
-        "max_length": 256,
-        "do_sample": True,
-        "top_k": 1,
-    }
-    response = model.generate(generate_kwargs)
+    with torch.no_grad():
+        outputs = model.generate(**inputs)
+        outputs = outputs[:, inputs["input_ids"].shape[1]:]
+        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        print(f"Model response:\n{response}")
     
     return response
 
