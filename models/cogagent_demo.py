@@ -1,9 +1,8 @@
+import re
+import torch
 from PIL import Image, ImageDraw
 import gradio as gr
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM
-)
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from typing import List
 import spaces
 
@@ -30,13 +29,13 @@ def predict(text, image_path):
         return_dict=True,
     ).to(model.device)
     
+    # Generate response
     with torch.no_grad():
         outputs = model.generate(**inputs)
         outputs = outputs[:, inputs["input_ids"].shape[1]:]
         response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        print(f"Model response:\n{response}")
     
-    return response
+        return response
 
 
 def main():

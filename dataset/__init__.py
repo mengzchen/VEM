@@ -13,11 +13,8 @@ class CogAgentDataset():
 
     def __getitem__(self, idx):
         ann = self.anns[idx]
-        # TODO no history
-
-        text = self.query_format.format(ann["task"], "")
         
-        return text
+        return ann["task"], self.query_format
 
 
 def create_dataset(config):

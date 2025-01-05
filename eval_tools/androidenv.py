@@ -50,6 +50,41 @@ def autoui_translate_action(raw_action):
         return AndroidAction(action_type=ActionType.Idle)
 
 
+def cogagent_translate_action(raw_action):
+    raw_action = raw_action.split('Grounded Operation:')[1]
+    action = raw_action.split(" ")[0]
+    if action == 'tap':
+        numbers = raw_action.split('[[')[1].split(',')
+        x = int(numbers[0])
+        y = int(numbers[1].split(']]')[0])
+        touch_point = (x/1000, y/1000)
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point, lift_point=touch_point)
+    elif "type" in action:
+        text = raw_action.split('"')[1]
+        return AndroidAction(action_type=ActionType.Type, typed_text=text)
+    elif "press home" in raw_action:
+        return AndroidAction(action_type=ActionType.GoHome)
+    elif "press back" in raw_action:
+        return AndroidAction(action_type=ActionType.GoBack)
+    elif "press enter" in raw_action:
+        return AndroidAction(action_type=ActionType.Enter)
+    elif "task complete" in raw_action:
+        return AndroidAction(action_type=ActionType.TaskComplete)
+    elif "task impossible" in raw_action:
+        return AndroidAction(action_type=ActionType.TaskImpossible)
+    elif "swipe up" in raw_action:
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.5), lift_point=(0.5, 0.2))
+    elif "swipe down" in raw_action:
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.2), lift_point=(0.5, 0.5))
+    elif "swipe left" in raw_action:
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.8, 0.5), lift_point=(0.2, 0.5))
+    elif "swipe right" in raw_action:
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.2, 0.5), lift_point=(0.8, 0.5))
+    else:
+        print(f"Action {raw_action} not supported yet.")
+        return AndroidAction(action_type=ActionType.Idle)
+
+
 class ActionType(Enum):
     Idle=0
     DualPoint=1
@@ -118,6 +153,10 @@ class AndroidEnv:
 
         self.step_num, self.terminated = 0, False
         self.history = []
+        if config["model_name"] == "cogagent":
+            self.translate_action = cogagent_translate_action
+        else:
+            self.translate_action = autoui_translate_action
     
 
     def get_obs(self):
@@ -131,7 +170,7 @@ class AndroidEnv:
 
 
     def step(self, raw_action, task):
-        action = autoui_translate_action(raw_action)
+        action = self.translate_action(raw_action)
         self.history.append(action)
         self.step_num += 1
         if self.step_num > self.max_steps:
@@ -177,50 +216,6 @@ class AndroidEnv:
             self.driver.quit()
         
         return screenshot_path, result
-
-
-def interact_environment(agent, env, dataset):
-    # TODO dodododododo
-    anns = []
-    for data in tqdm(dataset):
-        done = False
-        ann = []
-        
-        observe = env.reset()
-                
-        steps = 0
-        while not done:
-            steps += 1
-                
-            action = agent.get_action(observe, observe["screenshot_path"])
-            
-            image = env.step(action)
-            
-            if env_return:
-                done = True
-                continue
-
-            obs_dict, r, done = env_return
-            next_screenshot = obs_dict["image_feature"]
-            next_observe = obs_dict["prompt"]
-            if not hasattr(agent, "critic"):
-                ann.append({
-                    "observation": observe, 
-                    "next_observation": next_observe, 
-                    "image_features": None, 
-                    "image_path": obs_dict["image_path"], 
-                    "next_image_features": None, 
-                    "task": obs_dict["task"],
-                    "reward": r, 
-                    "done": done, 
-                    "action": action})
-                observe = obs_dict
-            
-            screenshot = next_screenshot
-        
-        anns.append(ann)  
-
-    return anns
 
 
 # env = AndroidEnv()

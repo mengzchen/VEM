@@ -5,9 +5,8 @@ class CogAgent:
     def __init__(self, config):
         self.client = Client(config["agent_url"])
     
-    def get_action(self, observation):
-        text = f'What steps do I need to take to "{observation['task']}"?(with grounding)'
-        response = self.client.predict(task=[text], history=[], image_path=handle_file(observation["image_path"]), api_name="/predict")
+    def get_action(self, text, image_path):
+        response = self.client.predict(text=text, image_path=handle_file(image_path), api_name="/predict")
         
         return response
 
@@ -21,5 +20,5 @@ def create_agent(config):
     else:
         assert f"not support such model: {config['model_name']}"
 
-test_client = CogAgent(config={"agent_url": "https://2101606c83ffc95c10.gradio.live"})
-test_client.get_action(observation={"task": "search the weather in Beijing", "image_path": "images/aitw_images/general/56622825824867794_0.png"})
+# test_client = CogAgent(config={"agent_url": "https://2101606c83ffc95c10.gradio.live"})
+# test_client.get_action(observation={"task": "search the weather in Beijing", "image_path": "images/aitw_images/general/56622825824867794_0.png"})
