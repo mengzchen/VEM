@@ -30,23 +30,23 @@ def autoui_translate_action(raw_action):
     if action_type == "DUAL_POINT":
         touch_point = ast.literal_eval(step_data["touch_point"])
         lift_point = ast.literal_eval(step_data["lift_point"])
-        return AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point, lift_point=lift_point)
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point, lift_point=lift_point), None, None
     elif action_type == "TYPE":
         typed_text = step_data["typed_text"] 
-        return AndroidAction(action_type=ActionType.Type, typed_text=typed_text)
+        return AndroidAction(action_type=ActionType.Type, typed_text=typed_text), None, None
     elif action_type == 'PRESS_HOME':
-        return AndroidAction(action_type=ActionType.GoHome)
+        return AndroidAction(action_type=ActionType.GoHome), None, None
     elif action_type == 'PRESS_BACK':
-        return AndroidAction(action_type=ActionType.GoBack)
+        return AndroidAction(action_type=ActionType.GoBack), None, None
     elif action_type == 'PRESS_ENTER':
-        return AndroidAction(action_type=ActionType.Enter)
+        return AndroidAction(action_type=ActionType.Enter), None, None
     elif action_type == 'STATUS_TASK_COMPLETE':
-        return AndroidAction(action_type=ActionType.TaskComplete)
+        return AndroidAction(action_type=ActionType.TaskComplete), None, None
     elif action_type == 'TASK_IMPOSSIBLE':
-        return AndroidAction(action_type=ActionType.TaskImpossible)
+        return AndroidAction(action_type=ActionType.TaskImpossible), None, None
     else:
         print(f"Action {raw_action} not supported yet.")
-        return AndroidAction(action_type=ActionType.Idle)
+        return AndroidAction(action_type=ActionType.Idle), None, None
 
 
 def cogagent_translate_action(raw_action):
@@ -223,7 +223,7 @@ class AndroidEnv:
 
         done, explanation = self.evaluator(task, screenshot_path)
         
-        return screenshot_path, done, action_description, grounded_operation, action.action_type, explanation
+        return screenshot_path, done, action_description, grounded_operation, action, explanation
 
 
 # env = AndroidEnv()

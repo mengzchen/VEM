@@ -8,10 +8,11 @@ import utils
 from dataset import create_dataset
 from models import create_agent
 from eval_tools.androidenv import AndroidEnv, ActionType
+from data_preprocess.action_transfer import step_2_action
 
 
 
-def evaluation(agent, dataset, env, ann_wpath):
+def evaluation(config, agent, dataset, env, ann_wpath):
     with open(ann_wpath, "a") as fout:
         for task_id, (task, query_format) in enumerate(dataset):
             done, history = False, []
@@ -23,10 +24,23 @@ def evaluation(agent, dataset, env, ann_wpath):
                 text = query_format.format(task, "".join(history))
                 raw_action = agent.get_action(text=text, image_path=screenshot_path)
                 
-                screenshot_path, done, action_description, grounded_operation, action_type, explanation = env.step(raw_action, task, step_num)
+                screenshot_path, done, action_description, grounded_operation, action, explanation = env.step(raw_action, task, step_num)
                 
-                print(f"======\n{task_id}_{step_num}: {task}\nimage: {screenshot_path}\ngrounding: {grounded_operation}\naction type: {action_type}\ndone: {done}\ngpt: {explanation}\ndesc: {action_description}")
-                history.append(f"\n{step_num-1}. {grounded_operation}\t{action_description}")
+                print(f"======\n{task_id}_{step_num}: {task}\nimage: {screenshot_path}\ntext: {text}\ngrounding: {grounded_operation}\naction type: {action.action_type}\ndone: {done}\ngpt: {explanation}\ndesc: {action_description}")
+                if config["model_name"] == "cogagent":
+                    history.append(f"\n{step_num-1}. {grounded_operation}\t{action_description}")
+                elif config["model_name"] == "autogui":
+                    action_desc = step_2_action(
+                        action_type=action.action_type, 
+                        touch_point=action.touch_point,
+                        lift_point=action.lift_point,
+                        typed_text=action.type_text,
+                        add_all_dict=True
+                    )
+                    history.append(action_desc)
+                else:
+                    raise KeyError
+                
                 result ={
                     "task_id": task_id,
                     "step_id": step_num,
@@ -38,7 +52,7 @@ def evaluation(agent, dataset, env, ann_wpath):
                 }
                 fout.writelines(json.dumps(result) + "\n")
 
-                if step_num > 10 or done or action_type == ActionType.TaskComplete:
+                if step_num > 10 or done or action.action_type == ActionType.TaskComplete:
                     env.driver.press_keycode(3)
                     break
                 
@@ -65,7 +79,7 @@ def main(config):
 
     print("### Start evaluating")
 
-    evaluation(agent, dataset, env, ann_wpath)
+    evaluation(config, agent, dataset, env, ann_wpath)
     
 
 
