@@ -482,12 +482,17 @@ def _test_call(**kwargs: Any):
 
 def get_message(text_list, image_path_list) -> list:
     if len(image_path_list) != 0:
-        assert len(text_list) == len(image_path_list), f"{len(text_list)} {len(image_path_list)}"
         content = []
-        for (text, image) in zip(text_list, image_path_list):
-            image = encode_image(image)
-            content.append({"type": "text", "text": text})
-            content.append({"type": "image_url", "image_url": {"url": image}})
+        image_index = 0
+        for text in text_list:
+            if image_index < len(image_path_list):
+                image = encode_image(image_path_list[image_index])
+                image_index += 1
+                content.append({"type": "text", "text": text})
+                content.append({"type": "image_url", "image_url": {"url": image}})
+            else:
+                content.append({"type": "text", "text": text})
+
         message = [{
             "role": "user",
             "content": content

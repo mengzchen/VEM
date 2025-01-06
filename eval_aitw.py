@@ -6,41 +6,61 @@ import os
 import utils
 from dataset import create_dataset
 from models import create_agent
-from eval_tools.androidenv import AndroidEnv, interact_environment
+from eval_tools.androidenv import AndroidEnv, ActionType
 
 
 
-def evaluation(agent, dataset, env):
-    anns = interact_environment(
-        agent=agent,
-        env=env,
-        dataset=dataset
-    )
-    
-    return anns
+def evaluation(agent, dataset, env, ann_wpath):
+    with open(ann_wpath, "a") as fout:
+        for task_id, (task, query_format) in enumerate(dataset):
+            done, history = False, []
+
+            step_num = 0
+            screenshot_path = env.get_obs(step_num)
+            while not done:
+                step_num += 1
+                text = query_format.format(task, "".join(history))
+                raw_action = agent.get_action(text=text, image_path=screenshot_path)
+                
+                screenshot_path, done, action_description, grounded_operation, action_type, explanation = env.step(raw_action, task, step_num)
+                
+                print(f"======\n{task_id}_{step_num}: {task}\nimage: {screenshot_path}\ngrounding: {grounded_operation}\naction type: {action_type}\ndone: {done}\ngpt: {explanation}\ndesc: {action_description}")
+                history.append(f"\n{step_num-1}. {grounded_operation}\t{action_description}")
+                result ={
+                    "task_id": task_id,
+                    "step_id": step_num,
+                    "task": task,
+                    "image_path": screenshot_path.replace("\\", "/"),
+                    "if_done": done,
+                    "prompt": text,
+                    "gpt-4o": explanation
+                }
+                fout.writelines(json.dumps(result) + "\n")
+
+                if step_num > 10 or done or action_type == ActionType.TaskComplete:
+                    break
+                
+    fout.close()
 
 
 def main(config):
     print("config:", json.dumps(config))
-    output_path = os.path.join("checkpoints/results/", f"{config['model_name']}.jsonl")
-    print("output_path: ", output_path)
+    ann_wpath = os.path.join("data", f"{config['model_name']}_online_aitw_general.jsonl")
+    print("output_path: ", ann_wpath)
 
-    print("### build android env")
+    print("- build android env")
 
     env = AndroidEnv(config)
 
-    print("### Creating agent")
+    print("- Creating agent")
     agent = create_agent(config)
     
-    print("### Creating datasets")
+    print("- Creating datasets")
     dataset = create_dataset(config)
 
     print("### Start evaluating")
 
-    predictions = evaluation(agent, dataset, env=None)
-
-    utils.write_jsonl(predictions, output_path)
-    print("### Prediction Results Save To: ", output_path)
+    evaluation(agent, dataset, env, ann_wpath)
     
 
 

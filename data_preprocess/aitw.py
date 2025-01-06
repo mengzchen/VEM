@@ -157,7 +157,6 @@ class AITW:
 
         def process_ann(ann):
             negative_action = self.gpt.get_negative_action(ann)
-            # TODO modify the action description and the image
 
             conversations = [
                 {"from": "human", "value": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},

@@ -3,7 +3,12 @@ import utils
 
 class CogAgentDataset():
     def __init__(self, config):
-        self.anns = utils.read_jsonl(config["data_path"])
+        origin_anns = utils.read_jsonl(config["data_path"])
+        self.tasks = []
+        for ann in origin_anns:
+            if ann["task"] not in self.tasks:
+                self.tasks.append(ann["task"])
+        print(f"\tlen of tasks: {len(self.tasks)}")
         self.query_format = "Task: {}\nHistory steps: {}\n(Platform: Mobile)\n(Answer in Action-Operation-Sensitive format.)\n"
 
 
@@ -12,12 +17,7 @@ class CogAgentDataset():
 
 
     def __getitem__(self, idx):
-        ann = self.anns[idx]
-        # TODO no history
-
-        text = self.query_format.format(ann["task"], "")
-        
-        return text
+        return self.tasks[idx], self.query_format
 
 
 def create_dataset(config):

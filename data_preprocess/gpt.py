@@ -68,32 +68,27 @@ def process_image(image_path):
 
 
 def call_gemini(client, system_msg, prompt, image_list, image_path):
-    if type(prompt) == list:
-        input_msg = [system_msg + "\n" + "=====Examples====="]
-        for i in range(len(image_list)-1):
-            input_msg += [
-                "\nScreenshot:",
-                process_image(image_list[i]),
-                prompt[i]
-            ]
+    input_msg = [system_msg + "\n" + "=====Examples====="]
+    for i in range(len(image_list)-1):
         input_msg += [
-            "=====Your Turn=====",
-            "\nScreenshot: ",
-            process_image(image_path),
-            prompt[-1]
+            "\nScreenshot:",
+            process_image(image_list[i]),
+            prompt[i]
         ]
-        response = client.generate_content(
-           input_msg
-        )
-    else:
-        response = client.generate_content(
-            [
-                system_msg + "\n" + prompt,
-                process_image(image_path)
-            ]
-        )
+    input_msg += [
+        "=====Your Turn=====",
+        "\nScreenshot: ",
+        process_image(image_path),
+        prompt[-1]
+    ]
+    
+    response = client.generate_content(
+        input_msg
+    )
+
     response.resolve()
     response_text = response.text
+
     return response_text
 
 
