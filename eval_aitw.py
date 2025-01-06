@@ -2,6 +2,7 @@ import argparse
 import yaml
 import json
 import os
+from tqdm import tqdm
 
 import utils
 from dataset import create_dataset
