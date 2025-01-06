@@ -62,7 +62,7 @@ def evaluation(config, agent, dataset, env, ann_wpath):
 
 def main(config):
     print("config:", json.dumps(config))
-    ann_wpath = f"./data/{config['model_name']}_online_aitw_general.jsonl"
+    ann_wpath = f"./data/{config['output_name']}_online_aitw_general.jsonl"
     success_num, finish_task = 0, []
     if os.path.exists(ann_wpath):
         for ann in utils.read_jsonl(ann_wpath):

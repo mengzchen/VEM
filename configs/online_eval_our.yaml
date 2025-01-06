@@ -1,5 +1,5 @@
 model_name: autogui
-output_name: autogui
+output_name: ours
 agent_url: https://10fa314d7209849159.gradio.live
 
 batch_size: 1
