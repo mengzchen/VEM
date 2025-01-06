@@ -22,9 +22,7 @@ def predict(text, image_path):
         )
         raw_actions = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
         
-        print(raw_actions)
-        
-    return raw_actions[0]
+        return raw_actions
 
 
 def main():

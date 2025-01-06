@@ -22,8 +22,9 @@ def evaluation(config, agent, dataset, env, ann_wpath):
             while not done:
                 step_num += 1
                 text = query_format.format(task, "".join(history))
-                raw_action = agent.get_action(text=text, image_path=screenshot_path)
                 
+                raw_action = agent.get_action(text=text, image_path=screenshot_path)
+                print(raw_action)
                 screenshot_path, done, action_description, grounded_operation, action, explanation = env.step(raw_action, task, step_num)
                 
                 print(f"======\n{task_id}_{step_num}: {task}\nimage: {screenshot_path}\ntext: {text}\ngrounding: {grounded_operation}\naction type: {action.action_type}\ndone: {done}\ngpt: {explanation}\ndesc: {action_description}")
@@ -61,21 +62,27 @@ def evaluation(config, agent, dataset, env, ann_wpath):
 
 def main(config):
     print("config:", json.dumps(config))
-    ann_wpath = os.path.join("data", f"{config['model_name']}_online_aitw_general.jsonl")
-    finish_task = [ann["task"] for ann in utils.read_jsonl(ann_wpath)]
-    success_num = sum([ann["if_done"] for ann in utils.read_jsonl(ann_wpath)])
-    print(f"### finish task num: {len(finish_task)}\tsuccess: {success_num}")
+    ann_wpath = f"./data/{config['model_name']}_online_aitw_general.jsonl"
+    success_num, finish_task = 0, []
+    if os.path.exists(ann_wpath):
+        for ann in utils.read_jsonl(ann_wpath):
+            if ann["task"] not in finish_task:
+                finish_task.append(ann["task"])
+            if ann["if_done"]: success_num += 1
+
+        print(f"### finish task num: {len(finish_task)}\tsuccess: {success_num}")
+
     print("output_path: ", ann_wpath)
 
-    print("- build android env")
+    print("Creating datasets")
+    dataset = create_dataset(config, finish_task)
+
+    print("build android env")
 
     env = AndroidEnv(config)
 
-    print("- Creating agent")
+    print("Creating agent")
     agent = create_agent(config)
-    
-    print("- Creating datasets")
-    dataset = create_dataset(config, finish_task)
 
     print("### Start evaluating")
 

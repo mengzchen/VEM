@@ -24,7 +24,7 @@ class AutoGUIAgent:
 def create_agent(config):
     if config["model_name"] == "cogagent":
         return CogAgent(config)
-    elif config["model_name"] == "autoui":
+    elif config["model_name"] == "autogui":
         return AutoGUIAgent(config)
     else:
         assert f"not support such model: {config['model_name']}"
