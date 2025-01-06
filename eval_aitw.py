@@ -39,6 +39,7 @@ def evaluation(agent, dataset, env, ann_wpath):
                 fout.writelines(json.dumps(result) + "\n")
 
                 if step_num > 10 or done or action_type == ActionType.TaskComplete:
+                    env.driver.press_keycode(3)
                     break
                 
     fout.close()

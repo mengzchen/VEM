@@ -1,7 +1,6 @@
 import torch
 from transformers import AutoTokenizer, AutoProcessor, Qwen2VLForConditionalGeneration, Blip2Model
 from models.T5_model import T5ForMultimodalGeneration
-import utils
 from PIL import Image
 
 

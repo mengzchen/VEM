@@ -200,9 +200,14 @@ class AndroidEnv:
             else:
                 self.driver.swipe(touch_x, touch_y, lift_x, lift_y)
         elif action.action_type == ActionType.Type:
-            sleep(4)
-            element = self.driver.switch_to.active_element
-            element.send_keys(action.typed_text)
+            for _ in range(2):
+                try:
+                    sleep(4)
+                    element = self.driver.switch_to.active_element
+                    element.send_keys(action.typed_text)
+                    break
+                except Exception as e:
+                    print("The element is not loaded yet or agent did not click anything")
         elif action.action_type == ActionType.GoBack:
             self.driver.back()
         elif action.action_type == ActionType.GoHome:
@@ -212,7 +217,7 @@ class AndroidEnv:
         elif action.action_type == ActionType.TaskComplete:
             self.driver.press_keycode(3)
         else:
-            raise Exception(f"Unknown action type: {action.action_type}")
+            pass
         
         screenshot_path = self.get_obs(step_num)
 

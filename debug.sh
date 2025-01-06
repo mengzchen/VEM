@@ -5,4 +5,4 @@
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
 
 # python models/cogagent_demo.py
-python3 eval_aitw.py --config configs/online_eval.yaml
+python3 eval_aitw.py --config configs/online_eval_cogagent.yaml

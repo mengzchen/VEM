@@ -4,7 +4,6 @@ agent_url: https://a990f17d64146380c2.gradio.live
 batch_size: 1
 data_path: data/aitw_anns/1218/general_val_policy.jsonl
 
-image_save_dir: ./cogagent_images
-image_save_dir: ./cogagent_images
+image_save_dir: ./images/online_eval_images
 appium_server_url: http://10.150.140.70:4723
 max_steps: 10

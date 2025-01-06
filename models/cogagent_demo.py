@@ -1,21 +1,8 @@
-import re
 import torch
-from PIL import Image, ImageDraw
+from PIL import Image 
 import gradio as gr
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from typing import List
 import spaces
-
-
-def draw_boxes_on_image(image: Image.Image, boxes: List[List[float]], save_path: str):
-    draw = ImageDraw.Draw(image)
-    for box in boxes:
-        x_min = int(box[0] * image.width)
-        y_min = int(box[1] * image.height)
-        x_max = int(box[2] * image.width)
-        y_max = int(box[3] * image.height)
-        draw.rectangle([x_min, y_min, x_max, y_max], outline="red", width=3)
-    image.save(save_path)
 
 
 @spaces.GPU()
