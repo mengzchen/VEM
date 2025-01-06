@@ -1,5 +1,5 @@
 model_name: cogagent
-agent_url: https://a990f17d64146380c2.gradio.live
+agent_url: https://6e342ada663d6e4f16.gradio.live
 
 batch_size: 1
 data_path: data/aitw_anns/1218/general_val_policy.jsonl

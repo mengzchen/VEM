@@ -48,6 +48,9 @@ def evaluation(agent, dataset, env, ann_wpath):
 def main(config):
     print("config:", json.dumps(config))
     ann_wpath = os.path.join("data", f"{config['model_name']}_online_aitw_general.jsonl")
+    finish_task = [ann["task"] for ann in utils.read_jsonl(ann_wpath)]
+    success_num = sum([ann["if_done"] for ann in utils.read_jsonl(ann_wpath)])
+    print(f"### finish task num: {len(finish_task)}\tsuccess: {success_num}")
     print("output_path: ", ann_wpath)
 
     print("- build android env")
@@ -58,7 +61,7 @@ def main(config):
     agent = create_agent(config)
     
     print("- Creating datasets")
-    dataset = create_dataset(config)
+    dataset = create_dataset(config, finish_task)
 
     print("### Start evaluating")
 
