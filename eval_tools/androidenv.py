@@ -19,9 +19,11 @@ from appium.options.android import UiAutomator2Options
 
 from data_preprocess.prompt import build_prompt_general
 from data_preprocess.cloudgpt_aoai import get_chat_completion, get_message
+from eval_tools.aitw import str_2_format
 
 
 def autoui_translate_action(raw_action):
+    action_desc = str_2_format(raw_action)
     pattern = r'(?<=Action Decision:\s).*'
     pred_str = "{" + re.search(pattern, raw_action).group(0).strip() + "}"
     step_data = ast.literal_eval(pred_str)
@@ -30,23 +32,23 @@ def autoui_translate_action(raw_action):
     if action_type == "DUAL_POINT":
         touch_point = ast.literal_eval(step_data["touch_point"])
         lift_point = ast.literal_eval(step_data["lift_point"])
-        return AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point, lift_point=lift_point), None, None
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point, lift_point=lift_point), action_desc, None
     elif action_type == "TYPE":
         typed_text = step_data["typed_text"] 
-        return AndroidAction(action_type=ActionType.Type, typed_text=typed_text), None, None
+        return AndroidAction(action_type=ActionType.Type, typed_text=typed_text), action_desc, None
     elif action_type == 'PRESS_HOME':
-        return AndroidAction(action_type=ActionType.GoHome), None, None
+        return AndroidAction(action_type=ActionType.GoHome), action_desc, None
     elif action_type == 'PRESS_BACK':
-        return AndroidAction(action_type=ActionType.GoBack), None, None
+        return AndroidAction(action_type=ActionType.GoBack), action_desc, None
     elif action_type == 'PRESS_ENTER':
-        return AndroidAction(action_type=ActionType.Enter), None, None
+        return AndroidAction(action_type=ActionType.Enter), action_desc, None
     elif action_type == 'STATUS_TASK_COMPLETE':
-        return AndroidAction(action_type=ActionType.TaskComplete), None, None
+        return AndroidAction(action_type=ActionType.TaskComplete), action_desc, None
     elif action_type == 'TASK_IMPOSSIBLE':
-        return AndroidAction(action_type=ActionType.TaskImpossible), None, None
+        return AndroidAction(action_type=ActionType.TaskImpossible), action_desc, None
     else:
         print(f"Action {raw_action} not supported yet.")
-        return AndroidAction(action_type=ActionType.Idle), None, None
+        return AndroidAction(action_type=ActionType.Idle), action_desc, None
 
 
 def cogagent_translate_action(raw_action):
@@ -195,7 +197,7 @@ class AndroidEnv:
             touch_y = action.touch_point[1] * self.screen_size[1]
             lift_x = action.lift_point[0] * self.screen_size[0]
             lift_y = action.lift_point[1] * self.screen_size[1]
-            if (touch_x - lift_x)**2 + (touch_y - lift_y)**2 < 10:
+            if (touch_x - lift_x)**2 + (touch_y - lift_y)**2 == 0:
                 self.driver.tap([(touch_x, touch_y)])
             else:
                 self.driver.swipe(touch_x, touch_y, lift_x, lift_y)
@@ -215,7 +217,8 @@ class AndroidEnv:
         elif action.action_type == ActionType.Enter:
             self.driver.press_keycode(66)
         elif action.action_type == ActionType.TaskComplete:
-            self.driver.press_keycode(3)
+            # self.driver.press_keycode(3)
+            pass
         else:
             pass
         

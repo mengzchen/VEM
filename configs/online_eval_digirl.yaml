@@ -1,10 +1,10 @@
 model_name: autogui
-output_name: autogui
-agent_url: https://fa47bd97bee1033478.gradio.live
+output_name: digirl
+agent_url: https://44c173e6a9d3e05c4a.gradio.live
 
 batch_size: 1
 data_path: data/aitw_anns/1218/general_val_policy.jsonl
 
 image_save_dir: ./images/online_eval_images
-appium_server_url: http://10.150.140.70:4724
+appium_server_url: http://10.150.140.70:4725
 max_steps: 10
