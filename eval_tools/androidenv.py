@@ -131,7 +131,7 @@ class AndroidEnv:
 
         done, explanation = self.evaluator(task, screenshot_path)
         
-        return screenshot_path, done, action_description, grounded_operation, action, explanation
+        return screenshot_path, done, action, explanation
 
 
 # env = AndroidEnv(config={"image_save_dir": "./images/online_eval_images", "appium_server_url": "http://10.150.140.70:4723", "model_name": "autogui"})

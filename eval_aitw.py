@@ -50,12 +50,13 @@ def evaluation(config, agent, dataset, env, ann_wpath):
                 action = env.translate_action(raw_action)
                 point_image_path = add_visilize2screenshot(current_screenshot_path, action)
 
-                next_screenshot_path, done, action_description, grounded_operation, action, explanation = env.step(raw_action, task, step_num)
+                next_screenshot_path, done, action, explanation = env.step(raw_action, task, step_num)
                 
                 if config["model_name"] == "cogagent":
-                    history.append(f"\n{step_num-1}. {grounded_operation}\t{action_description}")
+                    pass
+                    # history.append(f"\n{step_num-1}. {grounded_operation}\t{action_description}")
                 elif config["model_name"] == "autogui":
-                    action_desc = to_autoui(action)
+                    action_desc = to_autoui(action, all_dict=True)
                     history.append(action_desc)
                 else:
                     raise KeyError
