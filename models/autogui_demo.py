@@ -3,34 +3,46 @@ import sys
 sys.path.append(os.getcwd())
 import torch
 import gradio as gr
-from transformers import AutoTokenizer
-from models.T5_model import T5ForMultimodalGeneration
+from accelerate import Accelerator
 import spaces
-from models.autoui_agent import ImageFeatureExtractor
+from models.autoui_agent import AutoUIAgent
+from train_rl import DigiRLTrainer
 
 
 @spaces.GPU()
 def predict(text, image_path):
-    image_features = image_features = torch.stack([image_feature_extractor.to_feat(image_path)[..., -1408:]])
+    image_features = image_features = torch.stack([trainer.image_process.to_feat(image_path)[..., -1408:]])
+
+    raw_actions = trainer.agent.get_action([text], image_features.to(dtype=torch.bfloat16))
     
-    with torch.no_grad():
-        text_ids = tokenizer([text], return_tensors='pt', padding=True, max_length=512, truncation=True).to(model.device)
-        image_features = image_features.to(model.device, torch.bfloat16)
-        
-        outputs = model.generate(
-            **text_ids, image_ids=image_features, max_new_tokens=256
-        )
-        raw_actions = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-        
-        return raw_actions
+    return raw_actions[0]
 
 
 def main():
-    global tokenizer, model, image_feature_extractor
-    model_dir = "checkpoints/Auto-UI-Base"
-    model = T5ForMultimodalGeneration.from_pretrained(model_dir, torch_dtype=torch.bfloat16, device_map="auto").eval()
-    tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True, device_map="auto")
-    image_feature_extractor = ImageFeatureExtractor()
+    global trainer
+    
+    accelerator = Accelerator()
+    device = accelerator.device
+
+    print("### load AutoUIAgent")
+
+    agent = AutoUIAgent(
+        device=device,
+        accelerator=accelerator,
+        do_sample=True,
+        temperature=1.0,
+        max_new_tokens=128,
+        policy_lm="checkpoints/Auto-UI-Base",
+        critic_lm="checkpoints/critic_1218/merge-520",
+    )
+    trainer = DigiRLTrainer(
+        agent=agent,
+        accelerator=accelerator,
+        tokenizer=agent.tokenizer
+    )
+
+    # trainer.load("checkpoints/general-off2on-digirl")
+    trainer.load("checkpoints/rl-1227/epoch_13")
 
     demo = gr.Interface(
         fn=predict,

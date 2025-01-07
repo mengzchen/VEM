@@ -82,3 +82,5 @@ def step_2_action(action_type, touch_point, lift_point, typed_text, add_all_dict
             return f"\"action_type\": \"{action_type}\", \"typed_text\": \"{typed_text}\""
         else:
             return f"\"action_type\": \"{action_type}\""
+
+

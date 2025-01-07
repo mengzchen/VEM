@@ -1,4 +1,5 @@
 model_name: cogagent
+output_name: cogagent
 agent_url: https://6e342ada663d6e4f16.gradio.live
 
 batch_size: 1

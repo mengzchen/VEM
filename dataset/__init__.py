@@ -25,7 +25,7 @@ class AutoGUIDataset():
         origin_anns = utils.read_jsonl(config["data_path"])
         self.tasks = []
         for ann in origin_anns:
-            if ann["task"] not in self.tasks and ann["task"] not in finish_task:
+            if ann["task"] not in self.tasks and ann["task"] not in finish_task.keys():
                 self.tasks.append(ann["task"])
         print(f"\tlen of tasks: {len(self.tasks)}")
         self.query_format = "Previous Action:\n{}\nGoal:\n{}"

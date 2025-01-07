@@ -19,36 +19,57 @@ from appium.options.android import UiAutomator2Options
 
 from data_preprocess.prompt import build_prompt_general
 from data_preprocess.cloudgpt_aoai import get_chat_completion, get_message
-from eval_tools.aitw import str_2_format
+
+
+class ActionType(Enum):
+    Idle=0
+    DualPoint=1
+    Type=2
+    GoBack=3
+    GoHome=4
+    Enter=5
+    TaskComplete=6
+    TaskImpossible=7
+
+
+@dataclass
+class AndroidAction():
+    action_type: ActionType
+    touch_point: Tuple[float, float] = None
+    lift_point: Tuple[float, float] = None
+    typed_text: str = None
 
 
 def autoui_translate_action(raw_action):
-    action_desc = str_2_format(raw_action)
-    pattern = r'(?<=Action Decision:\s).*'
-    pred_str = "{" + re.search(pattern, raw_action).group(0).strip() + "}"
-    step_data = ast.literal_eval(pred_str)
-    action_type = str(step_data["action_type"])
-    
-    if action_type == "DUAL_POINT":
-        touch_point = ast.literal_eval(step_data["touch_point"])
-        lift_point = ast.literal_eval(step_data["lift_point"])
-        return AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point, lift_point=lift_point), action_desc, None
-    elif action_type == "TYPE":
-        typed_text = step_data["typed_text"] 
-        return AndroidAction(action_type=ActionType.Type, typed_text=typed_text), action_desc, None
+    action_str = raw_action.split("Action Decision: ")[1]
+    action_type, touch_point_1, touch_point_2, lift_point_1, lift_point_2, typed_text = action_str.split(", ")
+    touch_point = touch_point_1 + ", " + touch_point_2
+    lift_point = lift_point_1 + ", " + lift_point_2
+    action_type = action_type.split(": ")[1].strip('"')
+    if action_type == 'DUAL_POINT':
+        touch_point_yx = touch_point.split(": ")[1].strip('[]"')
+        touch_point_yx = [float(num) for num in touch_point_yx.split(", ")]
+        lift_point_yx = lift_point.split(": ")[1].strip('[]"')
+        lift_point_yx = [float(num) for num in lift_point_yx.split(", ")]
+        action_class = AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point_yx[::-1], lift_point=lift_point_yx[::-1])
+    elif action_type == 'TYPE':
+        text = typed_text.split(": ")[1].strip('"')
+        action_class = AndroidAction(action_type=ActionType.Type, typed_text=text)
     elif action_type == 'PRESS_HOME':
-        return AndroidAction(action_type=ActionType.GoHome), action_desc, None
+        action_class = AndroidAction(action_type=ActionType.GoHome)
     elif action_type == 'PRESS_BACK':
-        return AndroidAction(action_type=ActionType.GoBack), action_desc, None
+        action_class = AndroidAction(action_type=ActionType.GoBack)
     elif action_type == 'PRESS_ENTER':
-        return AndroidAction(action_type=ActionType.Enter), action_desc, None
+        action_class = AndroidAction(action_type=ActionType.Enter)
     elif action_type == 'STATUS_TASK_COMPLETE':
-        return AndroidAction(action_type=ActionType.TaskComplete), action_desc, None
+        action_class = AndroidAction(action_type=ActionType.TaskComplete)
     elif action_type == 'TASK_IMPOSSIBLE':
-        return AndroidAction(action_type=ActionType.TaskImpossible), action_desc, None
+        action_class = AndroidAction(action_type=ActionType.TaskImpossible)
     else:
         print(f"Action {raw_action} not supported yet.")
-        return AndroidAction(action_type=ActionType.Idle), action_desc, None
+        action_class = AndroidAction(action_type=ActionType.Idle)
+    
+    return action_class, None, None
 
 
 def cogagent_translate_action(raw_action):
@@ -104,23 +125,23 @@ def cogagent_translate_action(raw_action):
     return action_class, action_description, grounded_operation
 
 
-class ActionType(Enum):
-    Idle=0
-    DualPoint=1
-    Type=2
-    GoBack=3
-    GoHome=4
-    Enter=5
-    TaskComplete=6
-    TaskImpossible=7
-
-
-@dataclass
-class AndroidAction():
-    action_type: ActionType
-    touch_point: Tuple[float, float] = None
-    lift_point: Tuple[float, float] = None
-    typed_text: str = None
+def to_autoui(act: AndroidAction):
+    if act.action_type == ActionType.DualPoint:
+        return f'"action_type": "DUAL_POINT", "touch_point": "[{act.touch_point[1]:.4f}, {act.touch_point[0]:.4f}]", "lift_point": "[{act.lift_point[1]:.4f}, {act.lift_point[0]:.4f}]", "typed_text": ""'
+    elif act.action_type == ActionType.Type:
+        return f'"action_type": "TYPE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": "{act.typed_text}"'
+    elif act.action_type == ActionType.GoBack:
+        return f'"action_type": "PRESS_BACK", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+    elif act.action_type == ActionType.GoHome:
+        return f'"action_type": "PRESS_HOME", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+    elif act.action_type == ActionType.Enter:
+        return f'"action_type": "PRESS_ENTER", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+    elif act.action_type == ActionType.TaskComplete or act.action_type == ActionType.TaskImpossible:
+        return f'"action_type": "STATUS_TASK_COMPLETE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+    else:
+        print(f"Action {act} not supported yet.")
+        return ""
+    
 
 
 class EndResultEvaluator:
@@ -189,39 +210,48 @@ class AndroidEnv:
 
     def step(self, raw_action, task, step_num):
         action, action_description, grounded_operation = self.translate_action(raw_action)
+        for _ in range(2):
+            try:
+                if action.action_type == ActionType.DualPoint:
+                    assert len(action.touch_point) == 2
+                    assert len(action.lift_point) == 2
+                    touch_x = action.touch_point[0] * self.screen_size[0]
+                    touch_y = action.touch_point[1] * self.screen_size[1]
+                    lift_x = action.lift_point[0] * self.screen_size[0]
+                    lift_y = action.lift_point[1] * self.screen_size[1]
+                    if (touch_x - lift_x)**2 + (touch_y - lift_y)**2 < 10:
+                        self.driver.tap([(touch_x, touch_y)])
+                    else:
+                        self.driver.swipe(touch_x, touch_y, lift_x, lift_y)
+                elif action.action_type == ActionType.Type:
+                    for i in range(2):
+                        try:
+                            sleep(4)
+                            element = self.driver.switch_to.active_element
+                            element.send_keys(action.typed_text)
+                            break
+                        except Exception as e:
+                            print(f"The element is not loaded yet or agent did not click anything")
+                elif action.action_type == ActionType.GoBack:
+                    self.driver.back()
+                elif action.action_type == ActionType.GoHome:
+                    self.driver.press_keycode(3)
+                elif action.action_type == ActionType.Enter:
+                    self.driver.press_keycode(66)
+                elif action.action_type == ActionType.TaskComplete:
+                    self.terminated = True
+                elif action.action_type == ActionType.TaskImpossible:
+                    self.terminated = True
+                elif action.action_type == ActionType.Idle:
+                    pass
+                else:
+                    raise Exception(f"Unknown action type: {action.action_type}")
+                break
+            except Exception as e:
+                sleep(10)
+                continue
         
-        if action.action_type == ActionType.DualPoint:
-            assert len(action.touch_point) == 2
-            assert len(action.lift_point) == 2
-            touch_x = action.touch_point[0] * self.screen_size[0]
-            touch_y = action.touch_point[1] * self.screen_size[1]
-            lift_x = action.lift_point[0] * self.screen_size[0]
-            lift_y = action.lift_point[1] * self.screen_size[1]
-            if (touch_x - lift_x)**2 + (touch_y - lift_y)**2 == 0:
-                self.driver.tap([(touch_x, touch_y)])
-            else:
-                self.driver.swipe(touch_x, touch_y, lift_x, lift_y)
-        elif action.action_type == ActionType.Type:
-            for _ in range(2):
-                try:
-                    sleep(4)
-                    element = self.driver.switch_to.active_element
-                    element.send_keys(action.typed_text)
-                    break
-                except Exception as e:
-                    print("The element is not loaded yet or agent did not click anything")
-        elif action.action_type == ActionType.GoBack:
-            self.driver.back()
-        elif action.action_type == ActionType.GoHome:
-            self.driver.press_keycode(3)
-        elif action.action_type == ActionType.Enter:
-            self.driver.press_keycode(66)
-        elif action.action_type == ActionType.TaskComplete:
-            # self.driver.press_keycode(3)
-            pass
-        else:
-            pass
-        
+        sleep(5)
         screenshot_path = self.get_obs(step_num)
 
         done, explanation = self.evaluator(task, screenshot_path)
@@ -229,5 +259,7 @@ class AndroidEnv:
         return screenshot_path, done, action_description, grounded_operation, action, explanation
 
 
-# env = AndroidEnv()
-# env.step(raw_action="Action Decision: \"action_type\": \"DUAL_POINT\", \"touch_point\": \"[0.689, 0.778]\", \"lift_point\": \"[0.689, 0.778]\", \"typed_text\": \"\"")
+# env = AndroidEnv(config={"image_save_dir": "./images/online_eval_images", "appium_server_url": "http://10.150.140.70:4723", "model_name": "autogui"})
+# raw_action = "Action Decision: \"action_type\": \"DUAL_POINT\", \"touch_point\": \"[0.689, 0.778]\", \"lift_point\": \"[0.689, 0.778]\", \"typed_text\": \"\""
+# image_path, _, _, _, _, _ = env.step(raw_action=raw_action, task="Install facebook", step_num=0)
+# print(image_path)

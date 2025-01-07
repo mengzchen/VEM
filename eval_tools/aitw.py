@@ -231,6 +231,7 @@ def str_2_format(output):
 
       action = {"action_type": action_type, "touch_point": touch_point, "lift_point": lift_point, "typed_text": typed_text.lower()}
 
+      # TODO be careful this change the location
       action["touch_point"] = [action["touch_point"][1], action["touch_point"][0]]
       action["lift_point"] = [action["lift_point"][1], action["lift_point"][0]]
     except:
