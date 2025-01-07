@@ -28,7 +28,7 @@ class AutoGUIDataset():
             if ann["task"] not in self.tasks and ann["task"] not in finish_task.keys():
                 self.tasks.append(ann["task"])
         print(f"\tlen of tasks: {len(self.tasks)}")
-        self.query_format = "Previous Action:\n{}\nGoal:\n{}"
+        self.query_format = "Previous Actions: {}\nGoal: {}"
 
     def __len__(self):
         return len(self.anns)

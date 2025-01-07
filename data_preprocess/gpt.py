@@ -57,48 +57,24 @@ class GPTScorer:
 def process_image(image_path):
     image = Image.open(image_path, 'r')
     image = image.resize((image.width // 4, image.height // 4))
-    # Save to a BytesIO object (in-memory file) as PNG
+    
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
 
-    # Load it back from the BytesIO object
     buffer.seek(0)
     image_reloaded = Image.open(buffer)
     return image_reloaded
 
 
-def call_gemini(client, system_msg, prompt, image_list, image_path):
-    input_msg = [system_msg + "\n" + "=====Examples====="]
-    for i in range(len(image_list)-1):
-        input_msg += [
-            "\nScreenshot:",
-            process_image(image_list[i]),
-            prompt[i]
-        ]
-    input_msg += [
-        "=====Your Turn=====",
-        "\nScreenshot: ",
-        process_image(image_path),
-        prompt[-1]
-    ]
-    
-    response = client.generate_content(
-        input_msg
-    )
+if __name__ == "__main__":
+    pass
+    # from data_preprocess.prompt import test
 
-    response.resolve()
-    response_text = response.text
+    # message = get_message(test, [])
+            
+    # response = get_chat_completion(
+    #     engine="gpt-4o-20240513",
+    #     messages=message,
+    # )
 
-    return response_text
-
-
-# from data_preprocess.prompt import test
-
-# message = get_message(test, [])
-        
-# response = get_chat_completion(
-#     engine="gpt-4o-20240513",
-#     messages=message,
-# )
-
-# print(response.choices[0].message.content)
+    # print(response.choices[0].message.content)

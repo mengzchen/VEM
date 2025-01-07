@@ -3,7 +3,6 @@ from typing import List
 import openpyxl
 from openpyxl.drawing.image import Image
 import cv2
-from collections import defaultdict
 import pandas as pd
 import matplotlib.pyplot as plt
 import os

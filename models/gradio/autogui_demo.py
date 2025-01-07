@@ -5,12 +5,13 @@ import torch
 import gradio as gr
 from accelerate import Accelerator
 import spaces
-from models.autoui_agent import AutoUIAgent
+from models.autoui_model import AutoUIAgent
 from train_rl import DigiRLTrainer
 
 
 @spaces.GPU()
 def predict(text, image_path):
+    # TODO check if the image will be break
     image_features = image_features = torch.stack([trainer.image_process.to_feat(image_path)[..., -1408:]])
 
     raw_actions = trainer.agent.get_action([text], image_features.to(dtype=torch.bfloat16))
@@ -18,7 +19,7 @@ def predict(text, image_path):
     return raw_actions[0]
 
 
-def main():
+def main(model_name):
     global trainer
     
     accelerator = Accelerator()
@@ -35,14 +36,14 @@ def main():
         policy_lm="checkpoints/Auto-UI-Base",
         critic_lm="checkpoints/critic_1218/merge-520",
     )
+
     trainer = DigiRLTrainer(
         agent=agent,
         accelerator=accelerator,
         tokenizer=agent.tokenizer
     )
 
-    # trainer.load("checkpoints/general-off2on-digirl")
-    trainer.load("checkpoints/rl-1227/epoch_13")
+    trainer.load(model_name)
 
     demo = gr.Interface(
         fn=predict,
@@ -57,5 +58,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
-    # predict("test", "images/aitw_images/general/3266935758626570610_0.png")
+    # checkpoints/rl-1227/epoch_13
+    # checkpoints/general-off2on-digirl
+    # checkpoints/Auto-UI-Base
+    model_name = "checkpoints/rl-1227/epoch_13"
+    main(model_name)

@@ -210,36 +210,6 @@ def check_actions_match(
   )
 
 
-def str_2_format(output):
-    try:
-      pattern = r'(?<=Action Decision:\s).*'
-      pred_str = "{" + re.search(pattern, output).group(0).strip() + "}"
-      step_data = ast.literal_eval(pred_str)
-      action_type = str(step_data["action_type"])
-      
-      if action_type == "DUAL_POINT":
-          touch_point = ast.literal_eval(step_data["touch_point"])
-          lift_point = ast.literal_eval(step_data["lift_point"])
-      else:
-          touch_point = [-1.0, -1.0]
-          lift_point = [-1.0, -1.0]
-
-      if action_type == "TYPE":
-          typed_text = step_data["typed_text"]
-      else:
-          typed_text = ""
-
-      action = {"action_type": action_type, "touch_point": touch_point, "lift_point": lift_point, "typed_text": typed_text.lower()}
-
-      # TODO be careful this change the location
-      action["touch_point"] = [action["touch_point"][1], action["touch_point"][0]]
-      action["lift_point"] = [action["lift_point"][1], action["lift_point"][0]]
-    except:
-      action = {"action_type": "", "touch_point": [-1.0, -1.0], "lift_point": [-1.0, -1.0], "typed_text": ""}
-    
-    return action
-
-
 def compute_matrix(anns, position_dict):
     ep2ann = {}
     for ann in anns:
@@ -282,24 +252,3 @@ def compute_matrix(anns, position_dict):
 
     print(f"step succ rate: {str(step_succ_rate)} ({succ_step}/{step_num})")
     print(f"task succ rate: {str(task_succ_rate)} ({succ_task}/{task_num})")
-
-
-def get_roll_type(
-    drag_touch_yx,
-    drag_lift_yx,
-):
-    drag_delta_x, drag_delta_y = drag_lift_yx[0] - drag_touch_yx[0], drag_lift_yx[1] - drag_touch_yx[1]
-
-    # y axis
-    if drag_delta_y == 0:
-        if drag_delta_x < 0:
-            scroll = "up"
-        else:
-            scroll = "down"
-    elif drag_delta_x == 0:
-        if drag_delta_y < 0:
-            scroll = "left"
-        else:
-            scroll = "right"
-            
-    return scroll

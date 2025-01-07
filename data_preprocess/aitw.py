@@ -4,7 +4,7 @@ sys.path.append(os.getcwd())
 
 from tqdm import tqdm
 
-from data_preprocess.action_transfer import action_type_dict, step_2_action
+from data_preprocess.utils import action_type_dict, step_2_action
 import utils
 from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
 from data_preprocess.gpt import GPTScorer
@@ -196,16 +196,18 @@ class AITW:
 
         utils.write_jsonl(anns, ann_wpath)
 
- 
 
-aitw_data = AITW(split="train", part="general", date="1218")
-aitw_data.get_unfold_data()
-# aitw_data.get_gpt_label()
-aitw_data.get_rl_data()
+if __name__ == "__main__":
+    date, part = "1218", "general"
+    aitw_data = AITW(split="train", part=part, date=date)
+    aitw_data.get_unfold_data()
+    aitw_data.get_gpt_label()
+    aitw_data.get_rl_data()
+    aitw_data.get_negative_anns(num=500)
 
-# {1: 1187, 2: 2153}
-# anns = utils.read_jsonl("data/aitw_anns/1218/general_train_critic.jsonl")[:100]
-# utils.write_to_excel(anns, "score.xlsx")
-
-# aitw_data.get_negative_anns(num=500)
+    aitw_data = AITW(split="val", part=part, date=date)
+    aitw_data.get_unfold_data()
+    aitw_data.get_gpt_label()
+    aitw_data.get_rl_data()
+    aitw_data.get_negative_anns(num=500)
 

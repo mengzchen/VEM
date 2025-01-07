@@ -1,4 +1,4 @@
-from models.autoui_agent import AutoUIAgent
+from models.autoui_model import AutoUIAgent
 from omegaconf import DictConfig, OmegaConf
 import hydra
 import os
@@ -13,13 +13,13 @@ from tqdm import tqdm
 import os
 import torch
 from qwen_vl_utils import process_vision_info
-from models.autoui_agent import ImageFeatureExtractor
+from models.autoui_model import ImageFeatureExtractor
 
-from eval_tools.aitw import compute_matrix
+from eval_tools.metrix import compute_matrix
 import logging
 import random
-from eval_tools.aitw import str_2_format
-from data_preprocess.action_transfer import update_trajectory
+from eval_tools.metrix import str_2_format
+from data_preprocess.utils import update_trajectory
 
 
 class DigiRLTrainer:

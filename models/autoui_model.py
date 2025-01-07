@@ -74,8 +74,7 @@ class AutoUIAgent(torch.nn.Module):
 
 class ImageFeatureExtractor:
     def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = Blip2Model.from_pretrained("./checkpoints/blip2-opt-2.7b").to(self.device)
+        self.model = Blip2Model.from_pretrained("./checkpoints/blip2-opt-2.7b").to("cuda")
         self.processor = AutoProcessor.from_pretrained("./checkpoints/blip2-opt-2.7b")
 
     def to_feat(self, image_path: str):

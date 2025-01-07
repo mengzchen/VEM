@@ -1,8 +1,7 @@
-import os
-
-
 test ="""
 """
+
+
 prompt_score_system ="""As an expert in the field of GUI and reinforcement learning, you will receive complete screenshots and textual descriptions of interactions for a given task. You need to evaluate a specific step in terms of its value within the task chain, similar to what a value function does in reinforcement learning. Detailed criteria and standards are given below.
 
 ## Explanation of the input content:
@@ -138,6 +137,7 @@ Current Action and Screenshot:
 """
 
 
+# TODO complete the negative prompt
 prompt_negative_system = """As an expert in the field of GUI and 负样本数据构造者, 你需要根据历史的screenshot及对应的action description,任务描述和原始的current action来生成一个新的负样本的current action. Detailed criteria and standards are given below.
 
 ## Explanation of the input content:
@@ -218,7 +218,8 @@ Previous Action: {}
 Current Action and Screenshot: {}
 """
 
-prompt_gemini_cot = """You're an expert in evaluating whether the Screenshot successfully completes the Task.
+
+prompt_android_success = """You're an expert in evaluating whether the Screenshot successfully completes the Task.
 
 =====Examples=====
 Screenshot: <image>
@@ -300,4 +301,4 @@ def build_prompt_general(task, image_path):
       image_path
    ]
     
-   return prompt_gemini_cot.format(task).split("<image>"), image_list
+   return prompt_android_success.format(task).split("<image>"), image_list

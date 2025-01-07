@@ -3,12 +3,15 @@ import yaml
 import json
 import os
 import cv2
+import openpyxl
+from openpyxl.drawing.image import Image
+import cv2
 
 import utils
 from dataset import create_dataset
 from models import create_agent
-from eval_tools.androidenv import AndroidEnv, ActionType
-from eval_tools.androidenv import to_autoui
+from data_preprocess.utils import ActionType, to_autoui
+from eval_tools.androidenv import AndroidEnv
 
 
 def add_visilize2screenshot(image_rpath, action):
@@ -21,7 +24,7 @@ def add_visilize2screenshot(image_rpath, action):
     x = int(action.touch_point[0] * width)
     y = int(action.touch_point[1] * height)
 
-    cv2.circle(image, (x, y), 20, (0, 0, 255), -1)
+    cv2.circle(image, (x, y), 50, (0, 0, 255), -1)
 
     image_wpath = image_rpath.replace(".png", "") + f"_point.png"
     cv2.imwrite(image_wpath, image) 
@@ -35,23 +38,20 @@ def evaluation(config, agent, dataset, env, ann_wpath):
             done, history = False, []
 
             step_num = 0
-            screenshot_path = env.get_obs(step_num)
+            current_screenshot_path = env.get_obs(step_num)
             while not done:
-                print(f"============\n{task_id}_{step_num}: {task}\ncurrent_image: {screenshot_path}")
                 step_num += 1
                 if config["model_name"] == "cogagent":
                     text = query_format.format(task, "".join(history))
                 else:
-                    text = query_format.format("".join(history), task)
+                    text = query_format.format(" ".join(history), task)
                 
-                raw_action = agent.get_action(text=text, image_path=screenshot_path)
+                raw_action = agent.get_action(text=text, image_path=current_screenshot_path)
                 action, _, _ = env.translate_action(raw_action)
-                point_image_path = add_visilize2screenshot(screenshot_path, action)
+                point_image_path = add_visilize2screenshot(current_screenshot_path, action)
+
+                next_screenshot_path, done, action_description, grounded_operation, action, explanation = env.step(raw_action, task, step_num)
                 
-                screenshot_path, done, action_description, grounded_operation, action, explanation = env.step(raw_action, task, step_num)
-
-                print(f"action: {action}\nafter image: {point_image_path}\nif done: {done}\ndesc: {action_description}")
-
                 if config["model_name"] == "cogagent":
                     history.append(f"\n{step_num-1}. {grounded_operation}\t{action_description}")
                 elif config["model_name"] == "autogui":
@@ -60,17 +60,30 @@ def evaluation(config, agent, dataset, env, ann_wpath):
                 else:
                     raise KeyError
                 
+                print("============")
+                print(f"{task_id}: {task}")
+                print(f"current_image: {current_screenshot_path}")
+                print(f"action: {action}")
+                print(f"point action on image: {point_image_path}")
+                print(f"next screen shot: {next_screenshot_path}")
+                print(f"if done: {done}")
+                
                 result ={
                     "task_id": task_id,
                     "step_id": step_num,
                     "task": task,
-                    "image_path": screenshot_path.replace("\\", "/"),
-                    "point_image_path": point_image_path,
+                    "action": history[-1],
+                    "current_image_path": current_screenshot_path.replace("\\", "/"),
+                    "point_image_path": point_image_path.replace("\\", "/"),
+                    "next_image_path": next_screenshot_path.replace("\\", "/"),
                     "if_done": done,
                     "prompt": text,
                     "gpt-4o": explanation
                 }
+
                 fout.writelines(json.dumps(result) + "\n")
+
+                current_screenshot_path = next_screenshot_path
 
                 if step_num > 10 or done or action.action_type == ActionType.TaskComplete:
                     env.driver.press_keycode(3)
@@ -91,7 +104,7 @@ def main(config):
                 finish_task[ann["task"]]["success"] = True
             finish_task[ann["task"]]["steps"].append(ann)
 
-        for task, info in finish_task.items():
+        for _, info in finish_task.items():
             if info["success"]: success_num += 1
             step_len += len(info["steps"])
 
@@ -113,16 +126,54 @@ def main(config):
     print("### Start evaluating")
 
     evaluation(config, agent, dataset, env, ann_wpath)
-    
+
+
+def write_to_excel(anns, wpath):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+
+    ws.cell(row=1, column=1, value="image")
+    ws.cell(row=1, column=2, value="image(add point)")
+    ws.cell(row=1, column=3, value="task")
+    ws.cell(row=1, column=4, value="prompt")
+    ws.cell(row=1, column=5, value="if_done")
+    ws.cell(row=1, column=7, value="explanation")
+
+    for idx, ann in enumerate(anns, start=2):
+        ws.cell(row=idx, column=3, value=ann["task"])
+        ws.cell(row=idx, column=4, value=ann["prompt"])
+        ws.cell(row=idx, column=5, value=ann["if_done"])
+        ws.cell(row=idx, column=6, value=ann["gpt-4o"])
+
+        img = Image(ann["image_path"].replace("\\", "/"))
+        img.width, img.height = (240, 480)
+        ws.row_dimensions[idx].height = 400
+        ws.add_image(img, f'A{idx}')
+        img = Image(ann["point_image_path"])
+        img.width, img.height = (240, 480)
+        ws.row_dimensions[idx].height = 400
+        ws.add_image(img, f'B{idx}')
+
+
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 20
+    wb.save(wpath)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, required=True, default="")
+    parser.add_argument('--model', type=str, required=True)
 
     args = parser.parse_args()
 
-    with open(args.config, 'r') as file:
+    config = f"configs/android_eval/online_eval_{args.model}.yaml"
+    with open(config, 'r') as file:
         config = yaml.safe_load(file)
 
     main(config)
+
+    # anns = utils.read_json("data/ours_online_aitw_general.json")["info"]
+    # excel_anns = []
+    # for _, info in anns.items():
+    #     excel_anns.extend(info["steps"])
+    # write_to_excel(excel_anns[:100], "our.xlsx")
