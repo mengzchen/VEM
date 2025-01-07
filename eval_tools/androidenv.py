@@ -16,6 +16,7 @@ from appium.options.android import UiAutomator2Options
 from data_preprocess.prompt import build_prompt_general
 from data_preprocess.cloudgpt_aoai import get_chat_completion, get_message
 from data_preprocess.utils import autoui_translate_action, cogagent_translate_action
+from data_preprocess.utils import ActionType
 
 
 class EndResultEvaluator:
@@ -83,7 +84,7 @@ class AndroidEnv:
 
 
     def step(self, raw_action, task, step_num):
-        action, action_description, grounded_operation = self.translate_action(raw_action)
+        action = self.translate_action(raw_action)
         for _ in range(2):
             try:
                 if action.action_type == ActionType.DualPoint:

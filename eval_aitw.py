@@ -47,7 +47,7 @@ def evaluation(config, agent, dataset, env, ann_wpath):
                     text = query_format.format(" ".join(history), task)
                 
                 raw_action = agent.get_action(text=text, image_path=current_screenshot_path)
-                action, _, _ = env.translate_action(raw_action)
+                action = env.translate_action(raw_action)
                 point_image_path = add_visilize2screenshot(current_screenshot_path, action)
 
                 next_screenshot_path, done, action_description, grounded_operation, action, explanation = env.step(raw_action, task, step_num)
@@ -109,7 +109,8 @@ def main(config):
             step_len += len(info["steps"])
 
         utils.write_json({"success_num": success_num, "step_num": step_len, "info": finish_task}, ann_wpath.replace("jsonl", "json"))
-        print(f"### finish task num: {len(finish_task.keys())}\tsuccess: {success_num}\tstep_len: {step_len/len(finish_task.keys())}")
+        if len(finish_task.keys()) > 0:
+            print(f"### finish task num: {len(finish_task.keys())}\tsuccess: {success_num}\tstep_len: {step_len/len(finish_task.keys())}")
 
     print("output_path: ", ann_wpath)
 
