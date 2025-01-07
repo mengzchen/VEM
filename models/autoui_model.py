@@ -80,7 +80,7 @@ class ImageFeatureExtractor:
     def to_feat(self, image_path: str):
         with torch.no_grad():
             image = Image.open(image_path)
-            inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+            inputs = self.processor(images=image, return_tensors="pt").to("cuda")
             
             image_features = self.model.get_image_features(**inputs).pooler_output[0]
             image_features = image_features.detach().cpu()
