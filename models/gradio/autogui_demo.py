@@ -11,7 +11,6 @@ from train_rl import DigiRLTrainer
 
 @spaces.GPU()
 def predict(text, image_path):
-    # TODO check if the image will be break
     image_features = image_features = torch.stack([trainer.image_process.to_feat(image_path)[..., -1408:]])
 
     raw_actions = trainer.agent.get_action([text], image_features.to(dtype=torch.bfloat16))

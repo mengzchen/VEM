@@ -8,7 +8,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import utils
-from data_preprocess.utils import action_type_dict, to_autoui
+from data_preprocess.utils import action_type_dict, to_autoui, action_dict_to_class
 from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
 from data_preprocess.gpt import GPTScorer
 
@@ -45,8 +45,8 @@ class AITW:
         anns = utils.read_json(f"data/aitw_anns/aitw_{self.split}.json")[self.part]
         steps = []
         for episode in tqdm(anns):
-            action_list, action_desc_list, image_list, add_point_image_list = [], [], [], []
-            action_desc_all_list, action_type_list = [], []
+            action_list, action_type_list, image_list, add_point_image_list = [], [], [], []
+            action_desc_list, action_desc_all_list = [], []
             for step_id, step in enumerate(episode):
                 image_filename = f"{step['img_filename']}.png"
                 image_path = os.path.join(self.image_dir, image_filename).replace("\\", "/")
@@ -54,33 +54,21 @@ class AITW:
                     print(f"{image_path} image not found")
                     continue
                 
-                action_list.append({
+                # all the models need
+                action_dict = {
                     "action_type": action_type_dict[step["action_type_text"]], 
                     "touch_point": step["touch"], 
                     "lift_point": step["lift"], 
                     "type_text": step["type_text"]
-                })
-                if "scroll" in step["action_type_text"]:
-                    print(step)
-                    exit()
-                action_type_list.append(action_type_dict[step["action_type_text"]])
+                }
+                action_list.append(action_dict)
+                action_type_list.append(action_dict["action_type"])
                 image_list.append(image_path)
-                # TODO write the format convert for different model in utils, including the qwen2vl, cogagent, seeclick
-                action_desc_list.append(f"step {step_id}: " + step_2_action(
-                    action_type=action_list[-1]["action_type"], 
-                    touch_point=action_list[-1]["touch_point"],
-                    lift_point=action_list[-1]["lift_point"],
-                    typed_text=action_list[-1]["type_text"],
-                    add_all_dict=False
-                ))
+                action = action_dict_to_class(action_dict)
 
-                action_desc_all_list.append(step_2_action(
-                    action_type=action_list[-1]["action_type"], 
-                    touch_point=action_list[-1]["touch_point"],
-                    lift_point=action_list[-1]["lift_point"],
-                    typed_text=action_list[-1]["type_text"],
-                    add_all_dict=True
-                ))
+                # for different model input
+                action_desc_list.append(f"step {step_id}: " + to_autoui(action, all_dict=False))
+                action_desc_all_list.append(to_autoui(action, all_dict=True))
                 
                 add_point_image_list.append(utils.add_visilize2screenshot(image_path, action_list[-1], "score"))
             
@@ -90,15 +78,15 @@ class AITW:
                     "step_id": step_id,
                     "task": step["goal"], 
                     "action_list": action_list,
+                    "action_type_list": action_type_list,
                     "image_list": image_list,
+                    "add_point_image_list": add_point_image_list,
                     "position": step["annot_position"],
-                    "action_type": action_type_dict[step["action_type_text"]], 
+                    "action_type": action_dict["action_type"], 
                     "touch_point": step["touch"], 
                     "lift_point": step["lift"], 
                     "type_text": step["type_text"],
                     "action_desc_list": action_desc_list,
-                    "add_point_image_list": add_point_image_list,
-                    "action_type_list": action_type_list,
                     "action_desc_all_list": action_desc_all_list
                 })
 

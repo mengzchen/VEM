@@ -82,6 +82,39 @@ def update_trajectory(anns, results):
     return anns
 
 
+def action_dict_to_class(action_dict):
+    action_type = action_dict["action_type"]
+    touch, lift = action_dict["touch_point"], action_dict["lift_point"]
+    typed_text = action_dict["type_text"]
+    if action_type == 'DUAL_POINT':
+        action_class = AndroidAction(action_type=ActionType.DualPoint, touch_point=touch[::-1], lift_point=lift[::-1])
+    elif action_type == 'TYPE':
+        action_class = AndroidAction(action_type=ActionType.Type, typed_text=typed_text)
+    elif action_type == 'SCROLL_UP':
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.5), lift_point=(0.5, 0.2))
+    elif action_type == 'SCROLL_DOWN':
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.2), lift_point=(0.5, 0.5))
+    elif action_type == 'SCROLL_LEFT':
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.8, 0.5), lift_point=(0.2, 0.5))
+    elif action_type == 'SCROLL_RIGHT':
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.2, 0.5), lift_point=(0.8, 0.5))
+    elif action_type == 'PRESS_HOME':
+        action_class = AndroidAction(action_type=ActionType.GoHome)
+    elif action_type == 'PRESS_BACK':
+        action_class = AndroidAction(action_type=ActionType.GoBack)
+    elif action_type == 'PRESS_ENTER':
+        action_class = AndroidAction(action_type=ActionType.Enter)
+    elif action_type == 'STATUS_TASK_COMPLETE':
+        action_class = AndroidAction(action_type=ActionType.TaskComplete)
+    elif action_type == 'STATUS_TASK_IMPOSSIBLE':
+        action_class = AndroidAction(action_type=ActionType.TaskImpossible)
+    else:
+        print(f"Action {action_dict} not supported yet.")
+        action_class = AndroidAction(action_type=ActionType.Idle)
+    
+    return action_class
+
+
 def autoui_translate_action(raw_action):
     action_str = raw_action.split("Action Decision: ")[1]
     action_type, touch_point_1, touch_point_2, lift_point_1, lift_point_2, typed_text = action_str.split(", ")
