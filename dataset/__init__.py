@@ -22,7 +22,7 @@ class CogAgentDataset():
 
 class AutoGUIDataset():
     def __init__(self, config, finish_task):
-        self.query_format = "Previous Actions: {}\nGoal: {}"
+        self.query_format = "Previous Action:\n{}\nGoal:\n{}"
         origin_anns = utils.read_jsonl(config["data_path"])
 
         self.anns, tasks = [], []

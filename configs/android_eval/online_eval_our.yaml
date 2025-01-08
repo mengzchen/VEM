@@ -1,6 +1,6 @@
 model_name: autogui
 output_name: ours_autoui
-agent_url: https://582699700992fe7fb7.gradio.live
+agent_url: https://9666f3d4ed11bd1fd1.gradio.live
 
 batch_size: 1
 data_path: data/aitw_anns/1218/general_val_policy.jsonl

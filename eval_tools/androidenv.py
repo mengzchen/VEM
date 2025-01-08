@@ -126,6 +126,7 @@ class AndroidEnv:
                 sleep(10)
                 continue
         
+        sleep(10)
         screenshot_path = self.get_obs(task_id, step_num)
 
         done, explanation = self.evaluator(task, screenshot_path)

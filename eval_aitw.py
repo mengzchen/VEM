@@ -44,7 +44,7 @@ def evaluation(config, agent, dataset, env, ann_wpath):
                 if config["model_name"] == "cogagent":
                     text = query_format.format(task, "".join(history))
                 else:
-                    text = query_format.format(" ".join(history), task)
+                    text = query_format.format("\n".join(history), task)
                 
                 raw_action = agent.get_action(text=text, image_path=current_screenshot_path)
                 action = env.translate_action(raw_action)
@@ -149,8 +149,7 @@ def write_to_excel(anns, wpath):
         ws.cell(row=idx, column=6, value=ann["prompt"])
         ws.cell(row=idx, column=7, value=ann["if_done"])
         ws.cell(row=idx, column=8, value=ann["gpt-4o"])
-        print(ann)
-        print("===========")
+        
         img = Image(ann["current_image_path"].replace("\\", "/"))
         img.width, img.height = (240, 480)
         ws.row_dimensions[idx].height = 400
@@ -182,8 +181,5 @@ if __name__ == "__main__":
 
     main(config)
 
-    # anns = utils.read_json("data/ours_online_aitw_general.json")["info"]
-    # excel_anns = []
-    # for _, info in anns.items():
-    #     excel_anns.extend(info["steps"])
-    # write_to_excel(excel_anns[:100], "our.xlsx")
+    # anns = utils.read_jsonl("data/result_0108/ours_autoui_online_aitw_general.jsonl")
+    # write_to_excel(anns[:100], "our.xlsx")
