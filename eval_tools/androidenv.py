@@ -48,7 +48,7 @@ class AndroidEnv:
         self.image_save_dir = config["image_save_dir"]
         if not os.path.exists(self.image_save_dir):
             os.makedirs(self.image_save_dir)
-        self.image_id = str(time.time())
+        self.model_name = config["output_name"]
 
         self.appium_server_url = config["appium_server_url"]
         capabilities = dict(
@@ -73,17 +73,17 @@ class AndroidEnv:
             self.translate_action = autoui_translate_action
     
 
-    def get_obs(self, step_num):
+    def get_obs(self, task_id, step_num):
         screenshot_str = self.driver.get_screenshot_as_base64()
         imgdata = base64.b64decode(screenshot_str)
         image =  Image.open(BytesIO(imgdata))
-        image_wpath = os.path.join(self.image_save_dir, f"{self.image_id}_{step_num}.png")
+        image_wpath = os.path.join(self.image_save_dir, f"{self.model_name}_{task_id}_{step_num}.png")
         image.save(image_wpath)
         
         return image_wpath
 
 
-    def step(self, raw_action, task, step_num):
+    def step(self, task_id, step_num, task, raw_action):
         action = self.translate_action(raw_action)
         for _ in range(2):
             try:
@@ -126,8 +126,7 @@ class AndroidEnv:
                 sleep(10)
                 continue
         
-        sleep(5)
-        screenshot_path = self.get_obs(step_num)
+        screenshot_path = self.get_obs(task_id, step_num)
 
         done, explanation = self.evaluator(task, screenshot_path)
         

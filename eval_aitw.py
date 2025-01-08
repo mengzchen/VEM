@@ -34,11 +34,11 @@ def add_visilize2screenshot(image_rpath, action):
 
 def evaluation(config, agent, dataset, env, ann_wpath):
     with open(ann_wpath, "a") as fout:
-        for task_id, (task, query_format) in enumerate(dataset):
+        for task_id, task, query_format in dataset:
             done, history = False, []
 
             step_num = 0
-            current_screenshot_path = env.get_obs(step_num)
+            current_screenshot_path = env.get_obs(task_id, step_num)
             while not done:
                 step_num += 1
                 if config["model_name"] == "cogagent":
@@ -50,7 +50,7 @@ def evaluation(config, agent, dataset, env, ann_wpath):
                 action = env.translate_action(raw_action)
                 point_image_path = add_visilize2screenshot(current_screenshot_path, action)
 
-                next_screenshot_path, done, action, explanation = env.step(raw_action, task, step_num)
+                next_screenshot_path, done, action, explanation = env.step(task_id, step_num, task, raw_action)
                 
                 if config["model_name"] == "cogagent":
                     pass
@@ -134,20 +134,24 @@ def write_to_excel(anns, wpath):
     wb = openpyxl.Workbook()
     ws = wb.active
 
-    ws.cell(row=1, column=1, value="image")
-    ws.cell(row=1, column=2, value="image(add point)")
-    ws.cell(row=1, column=3, value="task")
-    ws.cell(row=1, column=4, value="prompt")
-    ws.cell(row=1, column=5, value="if_done")
-    ws.cell(row=1, column=7, value="explanation")
+    ws.cell(row=1, column=1, value="current image")
+    ws.cell(row=1, column=2, value="current image(add point)")
+    ws.cell(row=1, column=3, value="next image")
+    ws.cell(row=1, column=4, value="task")
+    ws.cell(row=1, column=5, value="action")
+    ws.cell(row=1, column=6, value="prompt")
+    ws.cell(row=1, column=7, value="if_done")
+    ws.cell(row=1, column=8, value="explanation")
 
     for idx, ann in enumerate(anns, start=2):
-        ws.cell(row=idx, column=3, value=ann["task"])
-        ws.cell(row=idx, column=4, value=ann["prompt"])
-        ws.cell(row=idx, column=5, value=ann["if_done"])
-        ws.cell(row=idx, column=6, value=ann["gpt-4o"])
-
-        img = Image(ann["image_path"].replace("\\", "/"))
+        ws.cell(row=idx, column=4, value=ann["task"])
+        ws.cell(row=idx, column=5, value=ann["action"])
+        ws.cell(row=idx, column=6, value=ann["prompt"])
+        ws.cell(row=idx, column=7, value=ann["if_done"])
+        ws.cell(row=idx, column=8, value=ann["gpt-4o"])
+        print(ann)
+        print("===========")
+        img = Image(ann["current_image_path"].replace("\\", "/"))
         img.width, img.height = (240, 480)
         ws.row_dimensions[idx].height = 400
         ws.add_image(img, f'A{idx}')
@@ -155,6 +159,10 @@ def write_to_excel(anns, wpath):
         img.width, img.height = (240, 480)
         ws.row_dimensions[idx].height = 400
         ws.add_image(img, f'B{idx}')
+        img = Image(ann["next_image_path"])
+        img.width, img.height = (240, 480)
+        ws.row_dimensions[idx].height = 400
+        ws.add_image(img, f'C{idx}')
 
 
     ws.column_dimensions['A'].width = 20
