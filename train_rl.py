@@ -1,24 +1,19 @@
-from models.autoui_model import AutoUIAgent
 from omegaconf import DictConfig, OmegaConf
 import hydra
 import os
-from accelerate import Accelerator
+from accelerate import Accelerator, DistributedDataParallelKwargs, InitProcessGroupKwargs
 from datetime import timedelta
-from accelerate import DistributedDataParallelKwargs, InitProcessGroupKwargs
-import utils
-
-from dataset.digirl_dataset import ReplayBuffer, DummyDataset
-from torch.utils.data import DataLoader
 from tqdm import tqdm
-import os
 import torch
+from torch.utils.data import DataLoader
 from qwen_vl_utils import process_vision_info
-from models.autoui_model import ImageFeatureExtractor
-
-from eval_tools.metrix import compute_matrix
 import logging
 import random
-from eval_tools.metrix import str_2_format
+
+import utils
+from dataset.digirl_dataset import ReplayBuffer, DummyDataset
+from models.autoui_model import ImageFeatureExtractor, AutoUIAgent
+from eval_tools.metrix import compute_matrix
 from data_preprocess.utils import update_trajectory
 
 
@@ -163,7 +158,7 @@ class DigiRLTrainer:
         return logs
 
 
-    def infer(self, data, batch_size, add_q_value):
+    def infer(self, data, batch_size):
         dtype = self.accelerator.unwrap_model(self.agent.model).dtype
         device = self.accelerator.unwrap_model(self.agent.model).device
         keys = ["ep_id", "step_id", "policy_input", "policy_output", "policy_image"]
@@ -184,28 +179,6 @@ class DigiRLTrainer:
 
             for (output, groundtruth, ep_id, step_id) in zip(outputs, groundtruths, ep_ids, step_ids):
                 results.append({"output": output, "groundtruth": groundtruth, "ep_id": ep_id, "step_id": step_id.item()})
-
-        if add_q_value:
-            q_values = []
-            data = update_trajectory(data, results)
-            buffer = ReplayBuffer(batch_size=batch_size, capacity=len(data))
-
-            for d in data:
-                buffer.insert(**d)
-            data = [buffer.sample(1) for _ in range(len(data))]
-
-            for d in data:
-                for k, v in d.items():
-                    d[k] = v[0]
-
-            dataloader = DataLoader(DummyDataset(data), batch_size=batch_size, shuffle=False)
-            dataloader = self.accelerator.prepare(dataloader)
-            with torch.no_grad():
-                for batch in tqdm(dataloader):
-                    loss, q_value = self.actor_loss(**batch, validation=True)
-                    q_values.append(q_value)
-
-            return results, sum(q_values) / len(q_values)
 
         return results
 
@@ -261,7 +234,7 @@ def onpolicy_train_loop(
         for train_step in range(len(train_trajectories) // sample_num):
             sample_trajectories = train_trajectories[train_step * sample_num: (train_step + 1) * sample_num]
 
-            results = trainer.infer(sample_trajectories, batch_size, add_q_value=False)
+            results = trainer.infer(sample_trajectories, batch_size)
             sample_trajectories = update_trajectory(sample_trajectories, results)
             
             replay_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(sample_trajectories))
@@ -271,7 +244,7 @@ def onpolicy_train_loop(
 
             logs.extend(trainer.update_policy(replay_buffer, is_validation=False, batch_size=batch_size))
 
-        results = trainer.infer(val_trajectories, batch_size, add_q_value=False)
+        results = trainer.infer(val_trajectories, batch_size)
         val_trajectories = update_trajectory(val_trajectories, results)
         validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
         for d in val_trajectories:
@@ -318,7 +291,7 @@ def eval_loop(
         trainer.load(save_path)
 
         trajectories = utils.read_jsonl(eval_path)
-        results = trainer.infer(trajectories, batch_size, add_q_value=False)
+        results = trainer.infer(trajectories, batch_size)
         utils.write_jsonl(results, result_wpath)
 
     if not os.path.exists("checkpoints/results"):

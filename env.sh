@@ -33,3 +33,7 @@ export SAS="?sv=2023-01-03&st=2024-12-23T06%3A01%3A13Z&se=2024-12-30T06%3A01%3A0
 #pip install -e ".[torch,metrics]"
 
 #CUDA_VISIBLE_DEVICES=1,2,3,4,5,6,7 python /cosmos/zhengjiani/DPO/DPO_train.py
+
+# i1 -A berzelius-2024-341 --gres=gpu:1  --time 12:00:00 --mail-type "BEGIN,END,FAIL" --mail-user "v-zhengjiani@microsoft.com"
+# squeue -u x_wenyi -o "%.10i %.9P %.20j %.8u %.2t %.10M %.6D %R"
+# export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH

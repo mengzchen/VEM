@@ -1,16 +1,16 @@
 import os
 import sys
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.getcwd())
 
 from tqdm import tqdm
-
-from data_preprocess.utils import action_type_dict, step_2_action
-import utils
-from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
-from data_preprocess.gpt import GPTScorer
 import json
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import utils
+from data_preprocess.utils import action_type_dict, to_autoui
+from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
+from data_preprocess.gpt import GPTScorer
 
 
 def get_unfinish_anns(anns, rpath):
@@ -60,9 +60,12 @@ class AITW:
                     "lift_point": step["lift"], 
                     "type_text": step["type_text"]
                 })
+                if "scroll" in step["action_type_text"]:
+                    print(step)
+                    exit()
                 action_type_list.append(action_type_dict[step["action_type_text"]])
                 image_list.append(image_path)
-
+                # TODO write the format convert for different model in utils, including the qwen2vl, cogagent, seeclick
                 action_desc_list.append(f"step {step_id}: " + step_2_action(
                     action_type=action_list[-1]["action_type"], 
                     touch_point=action_list[-1]["touch_point"],
@@ -198,16 +201,16 @@ class AITW:
 
 
 if __name__ == "__main__":
-    date, part = "1218", "general"
+    date, part = "0108", "general"
     aitw_data = AITW(split="train", part=part, date=date)
     aitw_data.get_unfold_data()
-    aitw_data.get_gpt_label()
-    aitw_data.get_rl_data()
-    aitw_data.get_negative_anns(num=500)
+    # aitw_data.get_gpt_label()
+    # aitw_data.get_rl_data()
+    # aitw_data.get_negative_anns(num=500)
 
-    aitw_data = AITW(split="val", part=part, date=date)
-    aitw_data.get_unfold_data()
-    aitw_data.get_gpt_label()
-    aitw_data.get_rl_data()
-    aitw_data.get_negative_anns(num=500)
+    # aitw_data = AITW(split="val", part=part, date=date)
+    # aitw_data.get_unfold_data()
+    # aitw_data.get_gpt_label()
+    # aitw_data.get_rl_data()
+    # aitw_data.get_negative_anns(num=500)
 
