@@ -144,12 +144,15 @@ class AITW:
         
         anns = [ann for ann in anns if f"{ann['ep_id']}_{ann['step_id']}" in step_ids]
         unfinish_anns = get_unfinish_anns(anns, ann_wpath)
+        print(unfinish_anns[0])
+        negative_action = self.gpt.get_negative_action(unfinish_anns[0])
+        exit()
 
         write_lock = threading.Lock()
 
         def process_ann(ann):
             negative_action = self.gpt.get_negative_action(ann)
-
+            
             conversations = [
                 {"from": "human", "value": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
                 {"from": "gpt", "value": str(ann["rating"])}
@@ -192,10 +195,10 @@ class AITW:
 if __name__ == "__main__":
     date, part = "0108", "general"
     aitw_data = AITW(split="train", part=part, date=date)
-    aitw_data.get_unfold_data()
+    # aitw_data.get_unfold_data()
     # aitw_data.get_gpt_label()
     # aitw_data.get_rl_data()
-    # aitw_data.get_negative_anns(num=500)
+    aitw_data.get_negative_anns(num=500)
 
     # aitw_data = AITW(split="val", part=part, date=date)
     # aitw_data.get_unfold_data()

@@ -42,6 +42,7 @@ class GPTScorer:
         history_action_desc = ""
         for action_desc in ann["action_desc_list"]:
             history_action_desc += f"\n<image>\n{action_desc}"
+            
         task_describe = prompt_score_system + prompt_score_user.format(task, history_action_desc, f"\n<image>\n{ann['action_desc_list'][ann['step_id']]}")
         
         message = get_message(task_describe.split("<image>")[:-1], ann["add_point_image_list"] + [ann["add_point_image_list"][ann["step_id"]]])
@@ -67,14 +68,14 @@ def process_image(image_path):
 
 
 if __name__ == "__main__":
-    pass
-    # from data_preprocess.prompt import test
+    
+    from data_preprocess.prompt import test
 
-    # message = get_message(test, [])
+    message = get_message(test, [])
             
-    # response = get_chat_completion(
-    #     engine="gpt-4o-20240513",
-    #     messages=message,
-    # )
+    response = get_chat_completion(
+        engine="gpt-4o-20240513",
+        messages=message,
+    )
 
-    # print(response.choices[0].message.content)
+    print(response.choices[0].message.content)
