@@ -84,20 +84,19 @@ def update_trajectory(anns, results):
 
 def action_dict_to_class(action_dict):
     action_type = action_dict["action_type"]
-    touch, lift = action_dict["touch_point"], action_dict["lift_point"]
-    typed_text = action_dict["type_text"]
+    
     if action_type == 'DUAL_POINT':
-        action_class = AndroidAction(action_type=ActionType.DualPoint, touch_point=touch[::-1], lift_point=lift[::-1])
+        action_class = AndroidAction(action_type=ActionType.DualPoint, touch_point=action_dict["touch_point"][::-1], lift_point=action_dict["lift_point"][::-1])
     elif action_type == 'TYPE':
-        action_class = AndroidAction(action_type=ActionType.Type, typed_text=typed_text)
+        action_class = AndroidAction(action_type=ActionType.Type, typed_text=action_dict["typed_text"])
     elif action_type == 'SCROLL_UP':
-        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.5), lift_point=(0.5, 0.2))
+        return AndroidAction(action_type=ActionType.Up, touch_point=(0.5, 0.5), lift_point=(0.5, 0.2))
     elif action_type == 'SCROLL_DOWN':
-        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.2), lift_point=(0.5, 0.5))
+        return AndroidAction(action_type=ActionType.Down, touch_point=(0.5, 0.2), lift_point=(0.5, 0.5))
     elif action_type == 'SCROLL_LEFT':
-        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.8, 0.5), lift_point=(0.2, 0.5))
+        return AndroidAction(action_type=ActionType.Left, touch_point=(0.8, 0.5), lift_point=(0.2, 0.5))
     elif action_type == 'SCROLL_RIGHT':
-        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.2, 0.5), lift_point=(0.8, 0.5))
+        return AndroidAction(action_type=ActionType.Right, touch_point=(0.2, 0.5), lift_point=(0.8, 0.5))
     elif action_type == 'PRESS_HOME':
         action_class = AndroidAction(action_type=ActionType.GoHome)
     elif action_type == 'PRESS_BACK':
@@ -188,7 +187,7 @@ def cogagent_translate_action(raw_action):
 
 def to_autoui(act: AndroidAction, all_dict):
     if all_dict:
-        if act.action_type == ActionType.DualPoint:
+        if act.action_type in [ActionType.DualPoint, ActionType.Up, ActionType.Down, ActionType.Left, ActionType.Right]:
             return f'"action_type": "DUAL_POINT", "touch_point": "[{act.touch_point[1]:.4f}, {act.touch_point[0]:.4f}]", "lift_point": "[{act.lift_point[1]:.4f}, {act.lift_point[0]:.4f}]", "typed_text": ""'
         elif act.action_type == ActionType.Type:
             return f'"action_type": "TYPE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": "{act.typed_text}"'

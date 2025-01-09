@@ -22,8 +22,9 @@ def write_json(anns: List, wpath: str):
 def add_visilize2screenshot(image_rpath, ann, tag):
     if ann["action_type"] != "DUAL_POINT":
         return image_rpath
-    
+
     touch_point, lift_point = ann["touch_point"], ann["lift_point"]
+
     click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
 
     image = cv2.imread(image_rpath)
@@ -37,7 +38,7 @@ def add_visilize2screenshot(image_rpath, ann, tag):
     image_wpath = image_rpath.split(".")[0] + f"_{tag}.png"
     cv2.imwrite(image_wpath, image) 
 
-    return image_wpath
+    return image_wpath.replace("\\", "/")
 
 
 def write_to_excel(anns, wpath):

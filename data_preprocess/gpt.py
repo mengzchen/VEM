@@ -5,9 +5,11 @@ sys.path.append(os.getcwd())
 import io
 from PIL import Image
 
+import utils
 from data_preprocess.cloudgpt_aoai import get_chat_completion, get_message
-from data_preprocess.prompt import prompt_score_system, prompt_score_user
-    
+from data_preprocess.prompt import prompt_score_system, prompt_score_user, prompt_negative_system, prompt_negative_user
+from data_preprocess.utils import action_dict_to_class, to_autoui
+
 
 class GPTScorer:
     def __init__(self):
@@ -43,17 +45,24 @@ class GPTScorer:
         for action_desc in ann["action_desc_list"]:
             history_action_desc += f"\n<image>\n{action_desc}"
             
-        task_describe = prompt_score_system + prompt_score_user.format(task, history_action_desc, f"\n<image>\n{ann['action_desc_list'][ann['step_id']]}")
+        task_describe = prompt_negative_system + prompt_negative_user.format(task, history_action_desc, f"\n<image>\n{ann['action_desc_list'][ann['step_id']]}")
         
         message = get_message(task_describe.split("<image>")[:-1], ann["add_point_image_list"] + [ann["add_point_image_list"][ann["step_id"]]])
         
         response = get_chat_completion(
             engine="gpt-4o-20240513",
             messages=message,
-        )
+        ).choices[0].message.content.replace("```json", "").replace("```", "")
         
-        return response.choices[0].message.content
+        action_desc = eval(response)["action_desc"]
+        if "click_point" in action_desc.keys():
+            click_point = [float(element.strip()) for element in action_desc["click_point"][1:-1].split(',')]
+            action_desc["touch_point"], action_desc["lift_point"] = click_point, click_point
+            del action_desc["click_point"]
 
+        add_point_image_path = utils.add_visilize2screenshot(ann["add_point_image_list"][ann["step_id"]], action_desc, "negative")
+        
+        return to_autoui(action_dict_to_class(action_desc), all_dict=False), add_point_image_path
 
 def process_image(image_path):
     image = Image.open(image_path, 'r')
@@ -68,14 +77,14 @@ def process_image(image_path):
 
 
 if __name__ == "__main__":
-    
-    from data_preprocess.prompt import test
+    pass
+    # from data_preprocess.prompt import test
 
-    message = get_message(test, [])
+    # message = get_message(test, [])
             
-    response = get_chat_completion(
-        engine="gpt-4o-20240513",
-        messages=message,
-    )
+    # response = get_chat_completion(
+    #     engine="gpt-4o-20240513",
+    #     messages=message,
+    # )
 
-    print(response.choices[0].message.content)
+    # print(response.choices[0].message.content)

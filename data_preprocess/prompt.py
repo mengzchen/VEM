@@ -209,8 +209,7 @@ Current Action and Screenshot:
 """
 
 
-# TODO complete the negative prompt
-prompt_negative_system = """As an expert in the field of GUI and 负样本数据构造者, 你需要根据历史的screenshot及对应的action description,任务描述和原始的current action来生成一个新的负样本的current action. Detailed criteria and standards are given below.
+prompt_negative_system = """As an expert in the field of GUI and negative sample data constructor, you need to generate a new negative sample of the current action based on historical screenshots and corresponding action descriptions, task description, and the original current action. Detailed criteria and standards are given below.
 
 ## Explanation of the input content:
 1. Task: Brief description of the current GUI task, such as implementing the "Get Hong Kong hotel prices" task in Android GUI.
@@ -224,7 +223,7 @@ prompt_negative_system = """As an expert in the field of GUI and 负样本数据
          - example: "action_type": "PRESS_BACK"
       [4] PRESS_HOME: Return to the system home page. Use this action to return to the home screen when the current screen is not the desired one, so you can reselect the program you need to enter.
          - example: "action_type": "PRESS_HOME"
-      [5] PRESS_ENTER: Press the enter key to execute a step. Generally, after confirming the input text, use this action to start the search.
+      [5] PRESS_ENTER: Press the enter key to execute a step. Generally, after confirming the input text, use this action to start the search.    
          - example: "action_type": "PRESS_ENTER"
       [6] STATUS_TASK_COMPLETE: An action used to indicate that the desired task has been completed and resets the environment. This action should also be used if the task is already completed and there is nothing more to do. For example, the task is to turn on the Wi-Fi when it is already on.
          - example: "action_type": "STATUS_TASK_COMPLETE"
@@ -238,11 +237,11 @@ prompt_negative_system = """As an expert in the field of GUI and 负样本数据
          - example: "action_type": "SCROLL_LEFT"
       [11] SCROLL_RIGHT: Scroll right.
          - example: "action_type": "SCROLL_RIGHT"
-   (2) Corresponding screenshot before each operation. If the operation is of the "DUAL_POINT" type, the click position is marked with a red dot in the image.    
+   (2) Corresponding screenshot before each operation. If the operation is of the "DUAL_POINT" type, the click position is marked with a red dot in the image.
 3. The positive current action and the corresponding screenshot.
 
-## 生成负样本的准则:
-在输入中给出是positive的current action,它符合下面的Level 2的标准,为了做data argumentation,我们需要生成其对应的negative current action,即下面的level 1所描述的action
+## Criteria for generating negative samples:
+The given input is a positive current action that meets the Level 2 standard below. To conduct data augmentation, we need to generate its corresponding negative current action, i.e., the action described below as level 1.
    Level 1: The action is not the optimal choice for completing the task at this moment, which may lead to deviations from the task flow. For example:
       (1) Incorrect text input.
       (2) Clicking a button that might lead to an advertisement.
@@ -254,40 +253,34 @@ prompt_negative_system = """As an expert in the field of GUI and 负样本数据
 
 ## Output requirements:
 - Format: {"action_desc": dict, "explanation": str}. Do not include any additional characters beyond this format
-- The "action_desc" field 需要给出新生成的负样本action所涉及的字段,即上文中text description部分所给出的格式.The "explanation" field 需要解释给出新的这个负样本的逻辑.
+- The "action_desc" field needs to provide the fields involved in the newly generated negative sample action according to the text description given above. The "explanation" field needs to explain the logic for giving this new negative sample.
 
 ## Example Input:
 Task Requirements: What is the capital of England?
-Action and ScreenShot:
-step 0: "action_type": "DUAL_POINT", "touch_point": "[0.524, 0.06]", "lift_point": "[0.524, 0.06]"
-step 1: "action_type": "TYPE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": "capital of England"
+Previous Action and ScreenShot:
+step 0: "action_type": "DUAL_POINT", "click_point": "[0.524, 0.06]"
+step 1: "action_type": "TYPE", "typed_text": "capital of England"
 Origin Action:
-step 2: "action_type": "PRESS_ENTER", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""
+step 2: "action_type": "PRESS_ENTER"
 
 ## Example Output 1:
 {
-   "explanation": "Since text about the capital of England has already been entered in the search box, pressing enter directly at this step should give the answer. However, if I generate an action indicating task completion, it will seriously deviate from the current task.",
-   "action_type": "STATUS_TASK_COMPLETE", 
-   "touch_point": "[-1.0, -1.0]", 
-   "lift_point": "[-1.0, -1.0]", 
-   "typed_text": ""
+   "action_desc": {"action_type": "STATUS_TASK_COMPLETE"}
+   "explanation": "Since text about the capital of England has already been entered in the search box, pressing enter directly at this step should give the answer. However, if I generate an action indicating task completion, it will seriously deviate from the current task."
 }
 
 ## Example Output 2:
 {
-   "explanation": "Since text about the capital of England has already been entered in the search box, pressing enter directly at this step should give the answer. However, if I generate a click on the adjacent advertising area, it will deviate from the task.",
-   "action_type": "DUAL_POINT", 
-   "touch_point": "[0.87, 0.52]", 
-   "lift_point": "[0.87, 0.52]", 
-   "typed_text": ""
+   "action_desc": {"action_type": "DUAL_POINT", "click_point": "[0.87, 0.52]"}
+   "explanation": "Since text about the capital of England has already been entered in the search box, pressing enter directly at this step should give the answer. However, if I generate a click on the adjacent advertising area, it will deviate from the task."
 }
 
 """
 
 
 prompt_negative_user = """Task Requirements: {}
-Previous Action: {}
-Current Action and Screenshot: {}
+Previous Action and ScreenShot: {}
+Origin Action: {}
 """
 
 

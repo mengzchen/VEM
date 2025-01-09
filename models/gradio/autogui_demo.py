@@ -43,7 +43,9 @@ def main(model_name):
         tokenizer=agent.tokenizer
     )
 
-    trainer.load(model_name)
+    if model_name != "autoui":
+        print(f"### loading the checkpoint: {model_name}")
+        trainer.load(model_name)
 
     demo = gr.Interface(
         fn=predict,

@@ -59,7 +59,7 @@ class AITW:
                     "action_type": action_type_dict[step["action_type_text"]], 
                     "touch_point": step["touch"], 
                     "lift_point": step["lift"], 
-                    "type_text": step["type_text"]
+                    "typed_text": step["type_text"]
                 }
                 action_list.append(action_dict)
                 action_type_list.append(action_dict["action_type"])
@@ -85,12 +85,11 @@ class AITW:
                     "action_type": action_dict["action_type"], 
                     "touch_point": step["touch"], 
                     "lift_point": step["lift"], 
-                    "type_text": step["type_text"],
+                    "typed_text": step["type_text"],
                     "action_desc_list": action_desc_list,
                     "action_desc_all_list": action_desc_all_list
                 })
-        print(steps[-1]["add_point_image_list"])
-        print(steps[-1]["action_type_list"])
+        
         utils.write_jsonl(steps, f"data/aitw_anns/{self.part}_{self.split}.jsonl")
 
     
@@ -144,21 +143,19 @@ class AITW:
         
         anns = [ann for ann in anns if f"{ann['ep_id']}_{ann['step_id']}" in step_ids]
         unfinish_anns = get_unfinish_anns(anns, ann_wpath)
-        print(unfinish_anns[0])
-        negative_action = self.gpt.get_negative_action(unfinish_anns[0])
-        exit()
 
         write_lock = threading.Lock()
 
         def process_ann(ann):
-            negative_action = self.gpt.get_negative_action(ann)
-            
+            negative_action, negative_add_point_image_path = self.gpt.get_negative_action(ann)
+            new_prompt = prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), negative_action)
+        
             conversations = [
-                {"from": "human", "value": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
-                {"from": "gpt", "value": str(ann["rating"])}
+                {"from": "human", "value": new_prompt},
+                {"from": "gpt", "value": "1"}
             ]
             ann["critic_inputs"] = conversations
-            ann["critic_images"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
+            ann["critic_images"] = negative_add_point_image_path
 
             return ann
 
@@ -174,7 +171,7 @@ class AITW:
                             fout.writelines(json.dumps(result) + "\n")
                     except Exception as exc:
                         print(f'Error processing annotation {ann}: {exc}')
-
+            
             fout.close()
 
 
