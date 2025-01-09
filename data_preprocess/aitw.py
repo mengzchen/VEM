@@ -89,7 +89,8 @@ class AITW:
                     "action_desc_list": action_desc_list,
                     "action_desc_all_list": action_desc_all_list
                 })
-
+        print(steps[-1]["add_point_image_list"])
+        print(steps[-1]["action_type_list"])
         utils.write_jsonl(steps, f"data/aitw_anns/{self.part}_{self.split}.jsonl")
 
     

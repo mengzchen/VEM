@@ -4,6 +4,7 @@ sys.path.append(os.getcwd())
 import torch
 import gradio as gr
 from accelerate import Accelerator
+import argparse
 import spaces
 from models.autoui_model import AutoUIAgent
 from train_rl import DigiRLTrainer
@@ -57,8 +58,18 @@ def main(model_name):
 
 
 if __name__ == "__main__":
-    # checkpoints/rl-1227/epoch_13
-    # checkpoints/general-off2on-digirl
-    # checkpoints/Auto-UI-Base
-    model_name = "checkpoints/rl-1227/epoch_13"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model', type=str, required=True)
+
+    args = parser.parse_args()
+
+    if args.model == "autoui":
+        model_name = "checkpoints/Auto-UI-Base"
+    elif args.model == "digirl":
+        model_name = "checkpoints/general-off2on-digirl"
+    elif args.model == "our":
+        model_name = "checkpoints/rl-1227/epoch_13"
+    else:
+        model_name = ""
+    
     main(model_name)
