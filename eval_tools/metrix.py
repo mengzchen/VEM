@@ -1,10 +1,8 @@
-import ast
 import numpy as np
 
 import jax.numpy as jnp
 import numpy as np
-from tqdm import tqdm
-import re
+from data_preprocess.utils import autoui_translate_action
 
 _TAP_DISTANCE_THRESHOLD = 0.14   
 ANNOTATION_WIDTH_AUGMENT_FRACTION = 1.4
@@ -225,18 +223,18 @@ def compute_matrix(anns, position_dict):
         for step in ann:
             step_num += 1
             
-            pred = str_2_format(step["output"])
-            groundtruth = str_2_format(step["groundtruth"])
+            pred = autoui_translate_action(step["output"])
+            groundtruth = autoui_translate_action(step["groundtruth"])
             position = position_dict[f"{step['ep_id']}_{step['step_id']}"]
             annot_position = np.array([position[i:i + 4] for i in range(0, len(position), 4)])
             
             check_match = check_actions_match(
-                pred["touch_point"], 
-                pred["lift_point"],
-                pred["action_type"], 
-                groundtruth["touch_point"],
-                groundtruth["lift_point"], 
-                groundtruth["action_type"],
+                pred.touch_point, 
+                pred.lift_point,
+                pred.action_type, 
+                groundtruth.touch_point,
+                groundtruth.lift_point, 
+                groundtruth.action_type,
                 annot_position
             )
             
