@@ -82,7 +82,7 @@ class AITW:
                     "image_list": image_list,
                     "add_point_image_list": add_point_image_list,
                     "position": step["annot_position"],
-                    "action_type": action_dict["action_type"], 
+                    "action_type": action_type_dict[step["action_type_text"]], 
                     "touch_point": step["touch"], 
                     "lift_point": step["lift"], 
                     "typed_text": step["type_text"],
@@ -107,7 +107,7 @@ class AITW:
 
             conversations = [
                 {"from": "human", "value": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
-                {"from": "gpt", "value": str(ann["rating"])}
+                {"from": "gpt", "value": str(response["rating"])}
             ]
             ann["critic_input"] = conversations
             ann["critic_image"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
@@ -126,7 +126,6 @@ class AITW:
                             fout.writelines(json.dumps(result) + "\n")
                     except Exception as exc:
                         print(f'Error processing annotation {ann}: {exc}')
-
             fout.close()
 
 
@@ -137,7 +136,7 @@ class AITW:
         step_ids = []
         anns = utils.read_jsonl(ann_rpath)
         for ann in anns:
-            if ann["rating"] == 2:
+            if ann["critic_output"] == 2:
                 step_ids.append(f"{ann['ep_id']}_{ann['step_id']}")
         step_ids = step_ids[:num]
         
@@ -190,16 +189,14 @@ class AITW:
 
 
 if __name__ == "__main__":
-    date, part = "0108", "general"
-    aitw_data = AITW(split="train", part=part, date=date)
-    # aitw_data.get_unfold_data()
-    # aitw_data.get_gpt_label()
-    # aitw_data.get_rl_data()
-    aitw_data.get_negative_anns(num=500)
-
-    # aitw_data = AITW(split="val", part=part, date=date)
+    date, part = "0108", "webshopping"
+    # aitw_data = AITW(split="train", part=part, date=date)
     # aitw_data.get_unfold_data()
     # aitw_data.get_gpt_label()
     # aitw_data.get_rl_data()
     # aitw_data.get_negative_anns(num=500)
 
+    # aitw_data = AITW(split="val", part=part, date=date)
+    # aitw_data.get_unfold_data()
+    # aitw_data.get_gpt_label()
+    # aitw_data.get_rl_data()
