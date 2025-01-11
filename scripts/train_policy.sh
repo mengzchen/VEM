@@ -9,4 +9,4 @@
 #SBATCH --error logs/policy.log
 
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
-python3 train_rl.py --config-path=configs/ --config-name=rl
+python3 train_rl.py --config-path=configs/policy --config-name=rl

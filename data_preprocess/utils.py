@@ -115,33 +115,36 @@ def action_dict_to_class(action_dict):
 
 
 def autoui_translate_action(raw_action):
-    action_str = raw_action.split("Action Decision: ")[1]
-    action_type, touch_point_1, touch_point_2, lift_point_1, lift_point_2, typed_text = action_str.split(", ")
-    touch_point = touch_point_1 + ", " + touch_point_2
-    lift_point = lift_point_1 + ", " + lift_point_2
-    action_type = action_type.split(": ")[1].strip('"')
-    if action_type == 'DUAL_POINT':
-        touch_point_yx = touch_point.split(": ")[1].strip('[]"')
-        touch_point_yx = [float(num) for num in touch_point_yx.split(", ")]
-        lift_point_yx = lift_point.split(": ")[1].strip('[]"')
-        lift_point_yx = [float(num) for num in lift_point_yx.split(", ")]
-        action_class = AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point_yx[::-1], lift_point=lift_point_yx[::-1])
-    elif action_type == 'TYPE':
-        text = typed_text.split(": ")[1].strip('"')
-        action_class = AndroidAction(action_type=ActionType.Type, typed_text=text)
-    elif action_type == 'PRESS_HOME':
-        action_class = AndroidAction(action_type=ActionType.GoHome)
-    elif action_type == 'PRESS_BACK':
-        action_class = AndroidAction(action_type=ActionType.GoBack)
-    elif action_type == 'PRESS_ENTER':
-        action_class = AndroidAction(action_type=ActionType.Enter)
-    elif action_type == 'STATUS_TASK_COMPLETE':
-        action_class = AndroidAction(action_type=ActionType.TaskComplete)
-    elif action_type == 'TASK_IMPOSSIBLE':
-        action_class = AndroidAction(action_type=ActionType.TaskImpossible)
-    else:
-        print(f"Action {raw_action} not supported yet.")
-        action_class = AndroidAction(action_type=ActionType.Idle)
+    try:
+        action_str = raw_action.split("Action Decision: ")[1]
+        action_type, touch_point_1, touch_point_2, lift_point_1, lift_point_2, typed_text = action_str.split(", ")
+        touch_point = touch_point_1 + ", " + touch_point_2
+        lift_point = lift_point_1 + ", " + lift_point_2
+        action_type = action_type.split(": ")[1].strip('"')
+        if action_type == 'DUAL_POINT':
+            touch_point_yx = touch_point.split(": ")[1].strip('[]"')
+            touch_point_yx = [float(num) for num in touch_point_yx.split(", ")]
+            lift_point_yx = lift_point.split(": ")[1].strip('[]"')
+            lift_point_yx = [float(num) for num in lift_point_yx.split(", ")]
+            action_class = AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point_yx[::-1], lift_point=lift_point_yx[::-1])
+        elif action_type == 'TYPE':
+            text = typed_text.split(": ")[1].strip('"')
+            action_class = AndroidAction(action_type=ActionType.Type, typed_text=text)
+        elif action_type == 'PRESS_HOME':
+            action_class = AndroidAction(action_type=ActionType.GoHome)
+        elif action_type == 'PRESS_BACK':
+            action_class = AndroidAction(action_type=ActionType.GoBack)
+        elif action_type == 'PRESS_ENTER':
+            action_class = AndroidAction(action_type=ActionType.Enter)
+        elif action_type == 'STATUS_TASK_COMPLETE':
+            action_class = AndroidAction(action_type=ActionType.TaskComplete)
+        elif action_type == 'TASK_IMPOSSIBLE':
+            action_class = AndroidAction(action_type=ActionType.TaskImpossible)
+        else:
+            print(f"Action {raw_action} not supported yet.")
+            action_class = AndroidAction(action_type=ActionType.Idle)
+    except:
+        return AndroidAction(action_type=ActionType.GoHome)
     
     return action_class
 

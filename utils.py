@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import os
 import math
 
+from data_preprocess.utils import ActionType
+
 
 def read_json(rpath: str):
     with open(rpath, 'r', encoding='utf-8') as file:
@@ -20,10 +22,15 @@ def write_json(anns: List, wpath: str):
 
 
 def add_visilize2screenshot(image_rpath, ann, tag):
-    if ann["action_type"] != "DUAL_POINT":
-        return image_rpath
+    if type(ann) == dict:
+        if ann["action_type"] != "DUAL_POINT":
+            return image_rpath
 
-    touch_point, lift_point = ann["touch_point"], ann["lift_point"]
+        touch_point, lift_point = ann["touch_point"], ann["lift_point"]
+    else:
+        if ann.action_type != ActionType.DualPoint:
+            return image_rpath
+        touch_point, lift_point = ann.touch_point, ann.lift_point
 
     click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
 

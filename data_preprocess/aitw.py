@@ -154,7 +154,7 @@ class AITW:
                 {"from": "gpt", "value": "1"}
             ]
             ann["critic_inputs"] = conversations
-            ann["critic_images"] = negative_add_point_image_path
+            ann["critic_images"] = negative_add_point_image_path.replace("\\", "/")
 
             return ann
 
@@ -189,7 +189,7 @@ class AITW:
 
 
 if __name__ == "__main__":
-    date, part = "0108", "webshopping"
+    # date, part = "0108", "webshopping"
     # aitw_data = AITW(split="train", part=part, date=date)
     # aitw_data.get_unfold_data()
     # aitw_data.get_gpt_label()
@@ -200,3 +200,7 @@ if __name__ == "__main__":
     # aitw_data.get_unfold_data()
     # aitw_data.get_gpt_label()
     # aitw_data.get_rl_data()
+    anns = utils.read_jsonl("data/aitw_anns/0108/webshopping_train_critic_negative.jsonl")
+    for ann in anns:
+        ann["critic_images"] = ann["critic_images"].replace("\\", "/")
+    utils.write_jsonl(anns, "data/aitw_anns/0108/webshopping_train_critic_negative.jsonl")

@@ -8,7 +8,7 @@ finetuning_type: lora
 lora_target: all
 
 ### dataset
-dataset: critic_train 
+dataset: critic_train, critic_train_negative
 eval_dataset: critic_val
 template: qwen2_vl
 cutoff_len: 2048
