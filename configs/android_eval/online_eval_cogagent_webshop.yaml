@@ -1,0 +1,10 @@
+model_name: cogagent
+output_name: cogagent_webshop
+agent_url: https://6e342ada663d6e4f16.gradio.live
+
+batch_size: 1
+data_path: data/aitw_anns/0108/webshop_val_policy.jsonl
+
+image_save_dir: ./images/online_eval_images
+appium_server_url: http://10.150.140.70:4723
+max_steps: 10
