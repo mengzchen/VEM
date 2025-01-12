@@ -9,4 +9,5 @@
 #SBATCH --error logs/policy_shopping_negative.log
 
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
-python3 train_rl.py --config-path=configs/policy --config-name=rl
+# python3 train_rl.py --config-path=configs/policy --config-name=rl
+python3 train_rl_qwen.py --config-path=configs/policy --config-name=rl_qwen
