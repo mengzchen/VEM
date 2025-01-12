@@ -109,8 +109,8 @@ class AITW:
                 {"from": "human", "value": prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), ann["action_desc_list"][ann["step_id"]])},
                 {"from": "gpt", "value": str(response["rating"])}
             ]
-            ann["critic_input"] = conversations
-            ann["critic_image"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
+            ann["critic_inputs"] = conversations
+            ann["critic_images"] = ann["add_point_image_list"][ann["step_id"]].replace("\\", "/")
 
             return ann
 
@@ -200,7 +200,4 @@ if __name__ == "__main__":
     # aitw_data.get_unfold_data()
     # aitw_data.get_gpt_label()
     # aitw_data.get_rl_data()
-    anns = utils.read_jsonl("data/aitw_anns/0108/webshopping_train_critic_negative.jsonl")
-    for ann in anns:
-        ann["critic_images"] = ann["critic_images"].replace("\\", "/")
-    utils.write_jsonl(anns, "data/aitw_anns/0108/webshopping_train_critic_negative.jsonl")
+    pass

@@ -1,6 +1,6 @@
 {
   "critic_train": {
-    "file_name": "aitw_anns/0108/general_train_critic.jsonl",
+    "file_name": "aitw_anns/0108/webshopping_train_critic.jsonl",
     "formatting": "sharegpt",
     "columns": {
       "messages": "critic_inputs",
@@ -8,7 +8,7 @@
     }
   },
   "critic_train_negative": {
-    "file_name": "aitw_anns/0108/general_train_critic_negative.jsonl",
+    "file_name": "aitw_anns/0108/webshopping_train_critic_negative.jsonl",
     "formatting": "sharegpt",
     "columns": {
       "messages": "critic_inputs",
@@ -16,7 +16,7 @@
     }
   },
   "critic_val": {
-    "file_name": "aitw_anns/0108/general_val_critic.jsonl",
+    "file_name": "aitw_anns/0108/webshopping_val_critic.jsonl",
     "formatting": "sharegpt",
     "columns": {
       "messages": "critic_inputs",

@@ -5,8 +5,8 @@
 #SBATCH --nodes 1
 #SBATCH --mail-type "BEGIN,END,FAIL"
 #SBATCH --mail-user "v-zhengjiani@microsoft.com"
-#SBATCH --output logs/policy.log
-#SBATCH --error logs/policy.log
+#SBATCH --output logs/policy_shopping_negative.log
+#SBATCH --error logs/policy_shopping_negative.log
 
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
 python3 train_rl.py --config-path=configs/policy --config-name=rl
