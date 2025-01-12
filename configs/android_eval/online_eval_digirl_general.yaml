@@ -1,9 +1,9 @@
 model_name: autogui
-output_name: digirl
-agent_url: https://24ebf22c032426b52b.gradio.live
+output_name: digirl_general
+agent_url: https://a3b26ca66c00c6813c.gradio.live
 
 batch_size: 1
-data_path: data/aitw_anns/1218/general_val_policy.jsonl
+data_path: data/aitw_anns/0108/general_val_policy.jsonl
 
 image_save_dir: ./images/online_eval_images
 appium_server_url: http://10.150.140.70:4725

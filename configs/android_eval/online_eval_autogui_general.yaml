@@ -1,9 +1,9 @@
 model_name: autogui
-output_name: autogui
-agent_url: https://945a89cdf477b59e82.gradio.live
+output_name: autogui_general
+agent_url: https://278d523de49f267277.gradio.live
 
 batch_size: 1
-data_path: data/aitw_anns/1218/general_val_policy.jsonl
+data_path: data/aitw_anns/0108/general_val_policy.jsonl
 
 image_save_dir: ./images/online_eval_images
 appium_server_url: http://10.150.140.70:4724

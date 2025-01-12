@@ -1,0 +1,10 @@
+model_name: autogui
+output_name: ours_autoui_webshop
+agent_url: https://2ac9172b55f1759cf7.gradio.live
+
+batch_size: 1
+data_path: data/aitw_anns/0108/webshop_val_policy.jsonl
+
+image_save_dir: ./images/online_eval_images
+appium_server_url: http://10.150.140.70:4723
+max_steps: 10
