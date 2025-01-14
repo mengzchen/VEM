@@ -1,0 +1,16 @@
+model_name: cogagent-9b-20241220
+
+# data 
+eval_only: True
+test_task: aitw_webshopping # aitw_webshopping
+train_data: './data/aitw_anns/0108/webshopping_train_policy.jsonl'
+eval_data: './data/aitw_anns/0108/webshopping_val_policy.jsonl'
+
+# model setting
+policy_lm: './checkpoints/cogagent-9b-20241220'
+critic_lm: './checkpoints/critic_1218/merge-520'
+
+# hparams
+epochs: 20
+batch_size: 3
+grad_accum_steps: 32

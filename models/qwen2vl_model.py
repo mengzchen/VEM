@@ -1,20 +1,23 @@
 import torch
-from transformers import AutoTokenizer, AutoProcessor, Qwen2VLForConditionalGeneration, AutoModelForCausalLM
+from transformers import AutoProcessor, Qwen2VLForConditionalGeneration, AutoModelForCausalLM, AutoTokenizer
+from peft import AutoPeftModelForCausalLM
+from transformers.generation import GenerationConfig
 from PIL import Image
-from data_preprocess.utils import cogagent_translate_action
+from qwen_vl_utils import process_vision_info
 
 
-class CogAgent(torch.nn.Module):
+class Qwen2VLAgent(torch.nn.Module):
     def __init__(self, accelerator, config):
-        super(CogAgent, self).__init__()
+        super(Qwen2VLAgent, self).__init__()
         print(f"### load policy: {config['policy_lm']}")
-        self.tokenizer = AutoTokenizer.from_pretrained(config["policy_lm"], padding_side="left", trust_remote_code=True)
-        self.model = AutoModelForCausalLM.from_pretrained(config["policy_lm"], torch_dtype=torch.bfloat16, trust_remote_code=True).to("cuda") 
-
-        print(f"### load critic: {config['critic_lm']}")
+        self.model = AutoModelForCausalLM.from_pretrained(config["policy_lm"], trust_remote_code=True, torch_dtype=torch.bfloat16).to("cuda")
+        self.tokenizer = AutoTokenizer.from_pretrained(config["qwen_path"], trust_remote_code=True)
+        self.model.generation_config = GenerationConfig.from_pretrained(config["qwen_path"], trust_remote_code=True)
+        
         # TODO freeze the critic
+        print(f"### load critic: {config['critic_lm']}")
         self.critic = Qwen2VLForConditionalGeneration.from_pretrained(config['critic_lm'], torch_dtype=torch.bfloat16)
-        self.critic_processor = AutoProcessor.from_pretrained(config['critic_lm'])
+        self.processor = AutoProcessor.from_pretrained(config['critic_lm'])
 
         self.dropout = torch.nn.Dropout(p=0.5)
         self.softmax = torch.nn.Softmax(dim=-1)
@@ -44,21 +47,9 @@ class CogAgent(torch.nn.Module):
     
     
     def _get_action(self, text, image_path):
-        image = Image.open(image_path)
-        inputs = self.tokenizer.apply_chat_template(
-            [{"role": "user", "image": image, "content": text}],
-            add_generation_prompt=True,
-            tokenize=True,
-            return_tensors="pt",
-            return_dict=True,
-        ).to("cuda")
-        
-        # Generate response
+        query = self.tokenizer.from_list_format([{'image': image_path}, {'text': text}])
         with torch.no_grad():
-            outputs = self.model.generate(**inputs)
-            outputs = outputs[:, inputs["input_ids"].shape[1]:]
-            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
+            response, _ = self.model.chat(self.tokenizer, query=query, history=None)
             return response
         
     def get_action(self, texts, image_paths):

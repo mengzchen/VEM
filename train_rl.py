@@ -291,7 +291,7 @@ def eval_loop(
 
         assert os.path.exists(save_path)
         print(f"### Loading from previous checkpoint: {save_path}")
-        # trainer.load(save_path)
+        trainer.load(save_path)
 
         trajectories = utils.read_jsonl(eval_path)
         results = trainer.infer(trajectories, batch_size)

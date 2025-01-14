@@ -35,6 +35,6 @@ azcopy_linux_amd64_10.27.1/azcopy copy ./checkpoints "$blob_dir$SAS"  --recursiv
 
 #CUDA_VISIBLE_DEVICES=1,2,3,4,5,6,7 python /cosmos/zhengjiani/DPO/DPO_train.py
 
-# i1 -A berzelius-2024-341 --gres=gpu:1  --time 5:00:00 --mail-type "BEGIN,END,FAIL" --mail-user "v-zhengjiani@microsoft.com"
+# i1 -A berzelius-2024-341 --gres=gpu:1  --time 1:00:00 --mail-type "BEGIN,END,FAIL" --mail-user "v-zhengjiani@microsoft.com"
 # squeue -u x_wenyi -o "%.10i %.9P %.20j %.8u %.2t %.10M %.6D %R"
 # export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH

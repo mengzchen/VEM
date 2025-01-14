@@ -1,0 +1,17 @@
+model_name: SeeClick
+
+# data 
+eval_only: True
+test_task: aitw_webshopping # aitw_webshopping
+train_data: './data/aitw_anns/0108/webshopping_train_policy.jsonl'
+eval_data: './data/aitw_anns/0108/webshopping_val_policy.jsonl'
+
+# model setting
+qwen_path: './checkpoints/Qwen-VL-Chat'
+policy_lm: './checkpoints/SeeClick-aitw'
+critic_lm: './checkpoints/critic_1218/merge-520'
+
+# hparams
+epochs: 20
+batch_size: 3
+grad_accum_steps: 32

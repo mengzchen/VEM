@@ -2,6 +2,53 @@ from torch.utils.data import Dataset
 import numpy as np
 
 
+class CogAgentDataset():
+    def __init__(self, anns):
+        query_format = "Task: {}\nHistory steps: {}\n(Platform: Mobile)\n(Answer in Action-Operation-Sensitive format.)\n"
+        self.anns = []
+        for ann in anns:
+            task = ann["task"]
+            
+            history_list = []
+            for i in range(ann["step_id"]):
+                action_type = ann["action_list"][i]["action_type"]
+                touch_point = ann["action_list"][i]["touch_point"]
+                x, y = int(touch_point[0] * 1000), int(touch_point[1] * 1000)
+                if action_type == "DUAL_POINT":
+                    desc = f"CLICK(box=[[{x},{y},{x},{y}]])"
+                elif action_type == "TYPE":
+                    desc = f"TYPE(box=[[{x},{y},{x},{y}]], text='{ann['action_list'][i]['typed_text']}')"
+                elif "SCROLL" in action_type:
+                    desc = f"{action_type}(box=[[{x},{y},{x},{y}]], step_count=5)"
+                elif action_type == "PRESS_ENTER":
+                    desc = f"KEY_PRESS(key='Enter')"
+                elif action_type == "PRESS_HOME":
+                    desc = f"KEY_PRESS(key='Home')"
+                elif action_type == "PRESS_BACK":
+                    desc = f"KEY_PRESS(key='Back')"
+                elif action_type == "STATUS_TASK_COMPLETE":
+                    desc = "END()"
+                else:
+                    print(action_type)
+
+                history_list.append(f"{i}.{desc}")
+            self.anns.append({
+                "ep_id": ann["ep_id"],
+                "step_id": ann["step_id"],
+                "policy_input": query_format.format(task, "\n".join(history_list)),
+                "policy_image": ann["policy_image"],
+                "policy_output": ann["policy_output"]
+            })
+
+
+    def __len__(self):
+        return len(self.anns)
+
+
+    def __getitem__(self, idx):
+        return self.anns[idx]
+    
+
 class DummyDataset(Dataset):
     def __init__(self, anns, keys):
         self.anns = []
@@ -63,3 +110,69 @@ class ReplayBuffer:
         self.policy_images[self.current_size % self.max_size] = policy_image
 
         self.current_size += 1
+
+
+def qwen_action2step(step_data):
+    action_type = step_data["action_type"]
+    
+    if action_type == "DUAL_POINT":
+        touch_point, lift_point = step_data["touch_point"], step_data["lift_point"]
+        click_point = [(touch_point[0] + lift_point[0]) / 2, (touch_point[1] + lift_point[1]) / 2]
+        click_point = [f"{item:.2f}" for item in click_point]
+        click_point = "({},{})".format(click_point[0], click_point[1])
+        action = "{{\"action_type\": {}, \"click_point\": {}}}".format(4, click_point)
+    elif action_type == 'SCROLL_DOWN':
+        action_type_new = 0
+        action = "{{\"action_type\": {}}}".format(action_type_new)
+    elif action_type == 'SCROLL_UP':
+        action_type_new = 1
+        action = "{{\"action_type\": {}}}".format(action_type_new)
+    elif action_type == 'SCROLL_LEFT':
+        action_type_new = 8
+        action = "{{\"action_type\": {}}}".format(action_type_new)
+    elif action_type == 'SCROLL_RIGHT':
+        action_type_new = 9
+        action = "{{\"action_type\": {}}}".format(action_type_new)
+    elif action_type == "TYPE":
+        action = "{{\"action_type\": {}, \"typed_text\": \"{}\"}}".format(3, step_data["typed_text"])
+    elif action_type == "PRESS_HOME":
+        action = "{{\"action_type\": {}}}".format(6)
+    elif action_type == "PRESS_BACK":
+        action = "{{\"action_type\": {}}}".format(5)
+    elif action_type == "PRESS_ENTER":
+        action = "{{\"action_type\": {}}}".format(7)
+    elif action_type == "STATUS_TASK_COMPLETE":
+        action = "{{\"action_type\": {}}}".format(10)
+    elif action_type == "STATUS_TASK_IMPOSSIBLE":
+        action = "{{\"action_type\": {}}}".format(11)
+    else:
+        action = "{{\"action_type\": {}}}".format(6)
+
+    return action
+
+
+class Qwen2VLDataset():
+    def __init__(self, anns):
+        query_format = "Please generate the next move according to the ui screenshot, instruction and previous actions. Instruction: {}. Previous actions: {}"
+        self.anns = []
+        for ann in anns:
+            task, history = ann["task"], []
+            for i, step in enumerate(ann["action_list"]):
+                format_action = qwen_action2step(step)
+                history.append('Step' + str(i) + ': ' + format_action + ". ") 
+                
+            self.anns.append({
+                "ep_id": ann["ep_id"],
+                "step_id": ann["step_id"],
+                "policy_input": query_format.format(task, "".join(history[:ann["step_id"]])),
+                "policy_image": ann["policy_image"],
+                "policy_output": ann["policy_output"]
+            })
+
+
+    def __len__(self):
+        return len(self.anns)
+
+
+    def __getitem__(self, idx):
+        return self.anns[idx]
