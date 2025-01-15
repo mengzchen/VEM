@@ -1,6 +1,6 @@
 model_name: autogui
-output_name: digirl_general
-agent_url: https://a3b26ca66c00c6813c.gradio.live
+output_name: digirl_general_offline
+agent_url: https://a7d3869e1ff8a15156.gradio.live
 
 batch_size: 1
 data_path: data/aitw_anns/0108/general_val_policy.jsonl

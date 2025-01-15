@@ -1,78 +1,5 @@
-test ="""帮我把下面prompt中的中文部分都翻译为英文融合进入，其他格式等不要做修改：
-
-As an expert in the field of GUI and 负样本数据构造者, 你需要根据历史的screenshot及对应的action description,任务描述和原始的current action来生成一个新的负样本的current action. Detailed criteria and standards are given below.
-
-## Explanation of the input content:
-1. Task: Brief description of the current GUI task, such as implementing the "Get Hong Kong hotel prices" task in Android GUI.
-2. History operation description and corresponding screenshot sequence for the task
-   (1) Text description of operations: Contains 11 types of GUI operations. Specific fields and their meanings are as follows:
-      [1] DUAL_POINT: Double-click on a specific position on the screen. If it is a link or software, it will enter; if it is text, it will be selected. The "click_point" is represented by a two-dimensional array indicating the position of the click, relative to the top-left corner of the screenshot and within a range from 0.0 to 1.0.
-         - example: "action_type": "DUAL_POINT", "click_point": [0.5, 0.5]
-      [2] TYPE: An action type that sends text. Note that this simply sends text and does not perform any clicks for element focus or enter presses for submitting text.
-         - example: "action_type": "TYPE", "typed_text": "capital of England"
-      [3] PRESS_BACK: Return to the previous page. Usually the previous webpage.
-         - example: "action_type": "PRESS_BACK"
-      [4] PRESS_HOME: Return to the system home page. Use this action to return to the home screen when the current screen is not the desired one, so you can reselect the program you need to enter.
-         - example: "action_type": "PRESS_HOME"
-      [5] PRESS_ENTER: Press the enter key to execute a step. Generally, after confirming the input text, use this action to start the search.
-         - example: "action_type": "PRESS_ENTER"
-      [6] STATUS_TASK_COMPLETE: An action used to indicate that the desired task has been completed and resets the environment. This action should also be used if the task is already completed and there is nothing more to do. For example, the task is to turn on the Wi-Fi when it is already on.
-         - example: "action_type": "STATUS_TASK_COMPLETE"
-      [7] STATUS_TASK_IMPOSSIBLE: An action used to indicate that the desired task is impossible to complete and resets the environment. This can result from various reasons including UI changes, Android version differences, etc.
-         - example: "action_type": "STATUS_TASK_IMPOSSIBLE"
-      [8] SCROLL_DOWN: Scroll down.
-         - example: "action_type": "SCROLL_DOWN"
-      [9] SCROLL_UP: Scroll up.
-         - example: "action_type": "SCROLL_UP"
-      [10] SCROLL_LEFT: Scroll left.
-         - example: "action_type": "SCROLL_LEFT"
-      [11] SCROLL_RIGHT: Scroll right.
-         - example: "action_type": "SCROLL_RIGHT"
-   (2) Corresponding screenshot before each operation. If the operation is of the "DUAL_POINT" type, the click position is marked with a red dot in the image.    
-3. The positive current action and the corresponding screenshot.
-
-## 生成负样本的准则:
-在输入中给出是positive的current action,它符合下面的Level 2的标准,为了做data argumentation,我们需要生成其对应的negative current action,即下面的level 1所描述的action
-   Level 1: The action is not the optimal choice for completing the task at this moment, which may lead to deviations from the task flow. For example:
-      (1) Incorrect text input.
-      (2) Clicking a button that might lead to an advertisement.
-      (3) Announcing the task's success when it has not actually been achieved.
-   Level 2: The action is the optimal and correct choice for completing the task at this moment. For example:
-      (1) When showing task completion, the displayed content can fully achieve it.
-      (2) When entering an unrelated interface, you can return to the main screen by executing "PRESS_HOME."
-      (3) Selecting the most correct entry point to complete the current task.
-
-## Output requirements:
-- Format: {"action_desc": dict, "explanation": str}. Do not include any additional characters beyond this format
-- The "action_desc" field 需要给出新生成的负样本action所涉及的字段,即上文中text description部分所给出的格式.The "explanation" field 需要解释给出新的这个负样本的逻辑.
-
-## Example Input:
-Task Requirements: What is the capital of England?
-Action and ScreenShot:
-step 0: "action_type": "DUAL_POINT", "touch_point": "[0.524, 0.06]", "lift_point": "[0.524, 0.06]"
-step 1: "action_type": "TYPE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": "capital of England"
-Origin Action:
-step 2: "action_type": "PRESS_ENTER", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""
-
-## Example Output 1:
-{
-   "explanation": "Since text about the capital of England has already been entered in the search box, pressing enter directly at this step should give the answer. However, if I generate an action indicating task completion, it will seriously deviate from the current task.",
-   "action_type": "STATUS_TASK_COMPLETE", 
-   "touch_point": "[-1.0, -1.0]", 
-   "lift_point": "[-1.0, -1.0]", 
-   "typed_text": ""
-}
-
-## Example Output 2:
-{
-   "explanation": "Since text about the capital of England has already been entered in the search box, pressing enter directly at this step should give the answer. However, if I generate a click on the adjacent advertising area, it will deviate from the task.",
-   "action_type": "DUAL_POINT", 
-   "touch_point": "[0.87, 0.52]", 
-   "lift_point": "[0.87, 0.52]", 
-   "typed_text": ""
-}
+test = """As an export in AI, you need to help me to write a paper about the GUI agent, using the RL algorithms. There are the draft of experiments, please help me to expand and modify the following expressions to use academic expressions in computer science field.
 """
-
 
 prompt_score_system ="""As an expert in the field of GUI and reinforcement learning, you will receive complete screenshots and textual descriptions of interactions for a given task. You need to evaluate a specific step in terms of its value within the task chain, similar to what a value function does in reinforcement learning. Detailed criteria and standards are given below.
 
@@ -284,7 +211,7 @@ Origin Action: {}
 """
 
 
-prompt_android_success = """You're an expert in evaluating whether the Screenshot successfully completes the Task.
+prompt_general = """You're an expert in evaluating whether the Screenshot successfully completes the Task.
 
 =====Examples=====
 Screenshot: <image>
@@ -351,19 +278,115 @@ Status: success or failure (don't return anything else)
 Start with "Q:".
 """
 
+prompt_webshop = """You're an expert in evaluating whether the Screenshot successfully completes the Task.
 
-def build_prompt_general(task, image_path):
-   image_list = [
-      "data/gemini_cot_images/screenshot_menu.png", 
-      "data/gemini_cot_images/screenshot_hotel.png", 
-      "data/gemini_cot_images/screenshot_restaurant.png",
-      "data/gemini_cot_images/screenshot_foodmenu.png", 
-      "data/gemini_cot_images/screenshot_news.png", 
-      "data/gemini_cot_images/screenshot_weather.png", 
-      "data/gemini_cot_images/screenshot_alarm.png", 
-      "data/gemini_cot_images/screenshot_frenchnews_blocked.png", 
-      "data/gemini_cot_images/screenshot_frenchnews_okay.png",
-      image_path
-   ]
-    
-   return prompt_android_success.format(task).split("<image>"), image_list
+=====Examples=====
+Screenshot: <image>
+Task: Go to bestbuy.com
+Q: What should I expect to see on the screenshot if I've gone to bestbuy.com?
+A: I should expect to see I'm in the Best Buy website, which usually shows the best buy logo with some featured products and categories. The screenshot shows I'm searching for "bestbuy.com" in the Google search (with some search suggestions) instead of being in the Best Buy website.
+Status: failure
+
+Screenshot: <image>
+Task: Go to costco.com
+Q: What should I expect to see on the screenshot if I've gone to costco.com?
+A: I should expect to see I'm in the Costco website, which usually shows the homepage with some featured products and categories. The screenshot shows I'm in the Costco website with some featured products and categories.
+Status: success
+
+Screenshot: <image>
+Task: Go to bestbuy.com, search for "macbook"
+Q: What should I expect to see on the screenshot if I've gone to bestbuy.com AND searched for "macbook"?
+A: I should expect to see I'm in the Best Buy website and search results for "macbook". The screenshot shows I'm in the Best Buy website and have several search suggestions for "macbook", but it does not show search results of the product, which usually includes price and the product details.
+Status: failure
+
+Screenshot: <image>
+Task: Go to ebay.com, search for "corsair k70"
+Q: What should I expect to see on the screenshot if I've gone to ebay.com AND searched for "corsair k70"?
+A: I should expect to see I'm in the eBay website and search results for "corsair k70". The screenshot shows I'm in the eBay ebay website with some search suggestions for "corsair k70", but it does not show search results of the product, which usually includes price and the product details.
+Status: failure
+
+Screenshot: <image>
+Task: Go to walmart.com, search for "macbook air"
+Q: What should I expect to see on the screenshot if I've gone to walmart.com AND searched for "macbook air"?
+A: I should expect to see I'm in the Walmart website and search results for "razer huntsman". The screenshot shows I'm in Google search with some search suggestions for "macbook air", not Walmart.
+Status: failure
+
+Screenshot: <image>
+Task: Go to walmart.com, search for "razer huntsman"
+Q: What should I expect to see on the screenshot if I've gone to walmart.com AND searched for "razer huntsman"?
+A: I should expect to see I'm in the Walmart website and search results for "razer huntsman". The screenshot shows I'm in the Walmart website, but there's no search results for "razer huntsman", which usually includes the product details and price.
+Status: failure
+
+Screenshot: <image>
+Task: Go to ebay.com, search for "lenovo thinkpad"
+Q: What should I expect to see on the screenshot if I've gone to ebay.com AND searched for "lenovo thinkpad"?
+A: I should expect to see I'm in the eBay website and search results for "lenovo thinkpad". The screenshot shows I'm in the eBay website and have several search results for "lenovo thinkpad".
+Status: success
+
+Screenshot: <image>
+Task: Go to ebay.com, search for "razer thresher", select the first entry
+Q: What should I expect to see on the screenshot if I've gone to ebay.com AND going to the first entry of the search results of "razer thresher"?
+A: I should expect to see I'm in the eBay website and detailed information of a razer thresher product, like a big image of the product, the price, and the product details. The screenshot shows I'm in the eBay website but with more than one search results for "razer thresher", which means the user has not selected the first entry of the search results.
+Status: failure
+
+Screenshot: <image>
+Task: Go to target.com, search for "razer kraken", and select the first entry
+Q: What should I expect to see on the screenshot if I've gone to target.com AND gone to the first entry of the search results of "razer kraken"?
+A: I should expect to see I'm in the Target website and can see detailed information of a razer thresher product, like a big image of the product, the price, and the product details. The screenshot shows I'm in Google Search, not in the Target website.
+Status: failure
+
+Screenshot: <image>
+Task: Go to ebay.com, search for "acer predator", and select the first entry
+Q: What should I expect to see on the screenshot if I've gone to ebay.com AND gone to the first entry of the search results of "acer predator"?
+A: I should expect to see I'm in the eBay website with detailed information of an acer predator product, like a big image of the product, the price, and the product details. The screenshot shows I'm in the eBay website and have more than one search results for "acer predator", which means the user has not selected the first entry of the search results.
+Status: failure
+
+Screenshot: <image>
+Task: Go to bestbuy.com, search for "macbook", select the first entry
+Q: What should I expect to see on the screenshot if I've gone to bestbuy.com AND gone to the first entry of the search results of "macbook"?
+A: I should expect to see I'm in the eBay website and detailed information of a macbook product, like a big image of the product, the price, and the product details. The screenshot shows I'm in the eBay website and have detailed information of Macbook Air, including the price and the product details.
+Status: success
+
+=====Your Turn=====
+Screenshot: <image>
+Task: {}
+Respond in this format:
+Q: What should I expect to see on the screenshot if I've <repeat the task>?
+A: I should expect to see <first expectation, then what's in the given screenshot.>
+Status: success or failure (don't return anything else)
+Start with "Q:".
+"""
+
+def build_prompt_general(config, task, image_path):
+   if "general" in config["output_name"]:
+      image_list = [
+         "data/gemini_cot_images/screenshot_menu.png", 
+         "data/gemini_cot_images/screenshot_hotel.png", 
+         "data/gemini_cot_images/screenshot_restaurant.png",
+         "data/gemini_cot_images/screenshot_foodmenu.png", 
+         "data/gemini_cot_images/screenshot_news.png", 
+         "data/gemini_cot_images/screenshot_weather.png", 
+         "data/gemini_cot_images/screenshot_alarm.png", 
+         "data/gemini_cot_images/screenshot_frenchnews_blocked.png", 
+         "data/gemini_cot_images/screenshot_frenchnews_okay.png",
+         image_path
+      ]
+      
+      return prompt_general.format(task).split("<image>"), image_list
+   else:
+      image_list = [
+         "step1_bestbuy.png",
+         "step1_costco.png",
+         "step2_bestbuy.png",
+         "step2_ebay.png",
+         "step2_walmart.png",
+         "step2_walmart2.png",
+         "step2_ebay2.png",
+         "step3_ebay.png",
+         "step3_target.png",
+         "step3_ebay2.png",
+         "step3_bestbuy.png",
+         image_path
+      ]    
+      
+      return prompt_webshop.format(task).split("<image>"), image_list

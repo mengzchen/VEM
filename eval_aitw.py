@@ -181,5 +181,5 @@ if __name__ == "__main__":
 
     main(config)
 
-    # anns = utils.read_jsonl("data/result_0108/ours_autoui_online_aitw_general.jsonl")
+    # anns = utils.read_jsonl("data/digirl_webshop_offline.jsonl")
     # write_to_excel(anns[:100], "our.xlsx")

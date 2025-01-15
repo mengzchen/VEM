@@ -8,7 +8,6 @@ from time import sleep
 
 import base64
 from io import BytesIO
-import time
 
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
@@ -20,12 +19,12 @@ from data_preprocess.utils import ActionType
 
 
 class EndResultEvaluator:
-    def __init__(self):
-        pass
+    def __init__(self, config):
+        self.config = config
 
 
     def __call__(self, task, image_path):
-        prompt, image_list = build_prompt_general(task, image_path)
+        prompt, image_list = build_prompt_general(self.config, task, image_path)
         message = get_message(prompt, image_list)
         
         response = get_chat_completion(
@@ -43,7 +42,7 @@ class EndResultEvaluator:
 
 class AndroidEnv:
     def __init__(self, config):
-        self.evaluator = EndResultEvaluator()
+        self.evaluator = EndResultEvaluator(config)
 
         self.image_save_dir = config["image_save_dir"]
         if not os.path.exists(self.image_save_dir):
@@ -113,17 +112,16 @@ class AndroidEnv:
                     self.driver.press_keycode(3)
                 elif action.action_type == ActionType.Enter:
                     self.driver.press_keycode(66)
-                elif action.action_type == ActionType.TaskComplete:
-                    self.terminated = True
-                elif action.action_type == ActionType.TaskImpossible:
-                    self.terminated = True
+                elif action.action_type in [ActionType.TaskComplete, ActionType.TaskImpossible]:
+                    self.driver.press_keycode(3)
+                    break
                 elif action.action_type == ActionType.Idle:
                     pass
                 else:
                     raise Exception(f"Unknown action type: {action.action_type}")
                 break
-            except Exception as e:
-                sleep(10)
+            except:
+                sleep(2)
                 continue
         
         sleep(10)

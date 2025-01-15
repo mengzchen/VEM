@@ -77,14 +77,14 @@ def process_image(image_path):
 
 
 if __name__ == "__main__":
-    pass
-    # from data_preprocess.prompt import test
+    # pass
+    from data_preprocess.prompt import test
 
-    # message = get_message(test, [])
+    message = get_message(test, [])
             
-    # response = get_chat_completion(
-    #     engine="gpt-4o-20240513",
-    #     messages=message,
-    # )
+    response = get_chat_completion(
+        engine="gpt-4o-20240513",
+        messages=message,
+    )
 
-    # print(response.choices[0].message.content)
+    print(response.choices[0].message.content)
