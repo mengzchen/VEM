@@ -9,11 +9,13 @@ from tqdm import tqdm
 from qwen_vl_utils import process_vision_info
 import numpy as np
 import ast
+import random
 
 import utils
 from models.qwen2vl_model import Qwen2VLAgent
-from dataset.digirl_dataset import Qwen2VLDataset
+from dataset.digirl_dataset import Qwen2VLDataset, ReplayBuffer, qwen_action2step
 from eval_tools.metrix import str_2_format, check_actions_match
+from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
 
 
 def qwen2vl_translate_action(step_data):
@@ -58,6 +60,41 @@ def qwen2vl_translate_action(step_data):
     action["lift_point"] = [action["lift_point"][1], action["lift_point"][0]]
 
     return action
+
+
+def to_autoui(act):
+    action_type = act["action_type"]
+    if action_type == "DUAL_POINT" or "SCROLL" in action_type:
+        touch_point, lift_point = act["touch_point"], act["lift_point"]
+        return f'"action_type": "DUAL_POINT", "touch_point": "[{touch_point[0]}, {touch_point[1]}]", "lift_point": "[{lift_point[0]}, {lift_point[1]}]", "typed_text": ""'
+    elif action_type == "TYPE":
+        text = act['typed_text']
+        return f'"action_type": "TYPE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": "{text}"'
+    elif action_type == "PRESS_BACK":
+        return f'"action_type": "PRESS_BACK", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+    elif action_type == "PRESS_HOME":
+        return f'"action_type": "PRESS_HOME", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+    elif action_type == "PRESS_ENTER":
+        return f'"action_type": "PRESS_ENTER", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+    elif action_type == "STATUS_TASK_COMPLETE" or action_type == "STATUS_TASK_IMPOSSIBLE":
+        return f'"action_type": "STATUS_TASK_COMPLETE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+    else:
+        print(f"Action {act} not supported yet.")
+        return ""
+        
+
+def update_trajectory(anns, results):
+    for (result, ann) in zip(results, anns):
+        new_action = qwen2vl_translate_action(result["output"])
+        new_action_desc = to_autoui(new_action)
+        
+        history_action_desc = "\n".join(ann["action_desc_list"][:ann["step_id"] - 1]) + "\n" + new_action_desc
+        
+        ann["critic_input"] = prompt_critic_system + prompt_critic_user.format(ann["task"], history_action_desc, new_action_desc)
+        ann["policy_output"] = qwen_action2step(new_action)
+        ann["critic_image"] = utils.add_visilize2screenshot(ann["policy_image"], new_action, "policy")
+
+    return anns
 
 
 def compute_matrix(anns, position_dict):
@@ -147,7 +184,6 @@ class DigiRLTrainer:
         **kwargs
     ):
         dtype = self.accelerator.unwrap_model(self.agent.model).dtype
-        device = self.accelerator.unwrap_model(self.agent.model).device
         
         messages = []
         for critic_input, critic_image in zip(critic_inputs, critic_images):
@@ -159,7 +195,7 @@ class DigiRLTrainer:
                 ]
             }])
 
-        texts = self.agent.critic_processor.apply_chat_template(
+        texts = self.agent.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
 
@@ -168,34 +204,28 @@ class DigiRLTrainer:
             vision_input, _ = process_vision_info(message)
             vision_inputs.append(vision_input)
 
-        inputs = self.agent.critic_processor(
+        inputs = self.agent.processor(
             text=texts,
             images=vision_inputs,
             padding=True,
             return_tensors="pt",
-        ).to(device)
-
+        ).to(self.agent.critic.device)
+        
         generated_ids = self.agent.critic.generate(**inputs, max_new_tokens=128)
         generated_ids_trimmed = [
             out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
         ]
 
-        q_values = self.agent.critic_processor.batch_decode(
+        q_values = self.agent.processor.batch_decode(
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )
 
         q_values = [int(val) for val in q_values]
-        q_values = torch.tensor(q_values, dtype=dtype, requires_grad=True).to(device)
+        q_values = torch.tensor(q_values, dtype=dtype, requires_grad=True).to(self.agent.model.device)
 
         q_values = q_values / 2
-
-        policy_image_features = []
-        for policy_image in policy_images:
-            policy_image_feature = self.image_process.to_feat(image_path=policy_image).to(device, dtype=dtype)
-            policy_image_features.append(policy_image_feature)
-        policy_image_features = torch.stack(policy_image_features)
-
-        log_prob = self.agent.get_log_prob(policy_inputs, policy_image_features, policy_outputs).sum(dim=1).flatten()
+        
+        log_prob = self.agent.get_log_prob(policy_inputs, policy_images, policy_outputs).sum(dim=1).flatten()
 
         pg_loss = - torch.mean(log_prob * q_values)
 
@@ -215,8 +245,7 @@ class DigiRLTrainer:
             for k, v in d.items():
                 d[k] = v[0]
 
-        keys = ["ep_id", "step_id", "policy_inputs", "policy_outputs", "policy_images", "critic_inputs", "critic_images"]
-        dataloader = self.accelerator.prepare(DataLoader(DummyDataset(data, keys), batch_size=batch_size, shuffle=False))
+        dataloader = self.accelerator.prepare(DataLoader(Qwen2VLDataset(data, is_train=True), batch_size=batch_size, shuffle=False))
 
         self.lm_optimizer.zero_grad()
         losses, q_values = [], []
@@ -243,7 +272,7 @@ class DigiRLTrainer:
 
 
     def infer(self, anns, batch_size):
-        dataloader = DataLoader(Qwen2VLDataset(anns), batch_size=batch_size, shuffle=False)
+        dataloader = DataLoader(Qwen2VLDataset(anns, is_train=False), batch_size=batch_size, shuffle=False)
         dataloader = self.accelerator.prepare(dataloader)
 
         results = []
@@ -267,62 +296,59 @@ class DigiRLTrainer:
         self.accelerator.load_state(path)
 
 
-# def train(agent, accelerator, config):
-#     trainer = DigiRLTrainer(
-#         agent=agent,
-#         accelerator=accelerator,
-#         tokenizer=agent.policy_tokenizer,
-#         lm_lr=config["lm_lr"],
-#         gamma=config["gamma"],
-#         tau=config["tau"],
-#         epochs=config["epochs"],
-#         grad_accum_steps=config["grad_accum_steps"],
-#         max_grad_norm=config["max_grad_norm"]
-#     )
+def train(agent, accelerator, config):
+    batch_size = config["batch_size"]
+    trainer = DigiRLTrainer(
+        config=config,
+        agent=agent,
+        accelerator=accelerator
+    )
 
-#     all_trajectories = utils.read_jsonl(config["train_data"])
+    all_trajectories = utils.read_jsonl(config["train_data"])
 
-#     agent.prepare()
-#     trainer.prepare()
+    # agent.prepare()
+    # trainer.prepare()
 
-#     print(f"### all trajectories: {len(all_trajectories)}")
+    print(f"### all trajectories: {len(all_trajectories)}")
 
-#     logs = []
-#     train_trajectories = all_trajectories[:int(len(all_trajectories) * 0.95)]
-#     val_trajectories = all_trajectories[int(len(all_trajectories) * 0.95):]
-#     random.shuffle(train_trajectories)
-#     sample_num = batch_size * grad_accum_steps
-#     for epoch in range(epochs):
-#         print(f"### epoch {epoch}")
-#         for train_step in range(len(train_trajectories) // sample_num):
-#             sample_trajectories = train_trajectories[train_step * sample_num: (train_step + 1) * sample_num]
+    logs = []
+    train_trajectories = all_trajectories[:int(len(all_trajectories) * 0.95)]
+    val_trajectories = all_trajectories[int(len(all_trajectories) * 0.95):]
+    random.shuffle(train_trajectories)
+    sample_num = batch_size * config["grad_accum_steps"]
+    for epoch in range(config["epochs"]):
+        print(f"### epoch {epoch}")
+        for train_step in range(len(train_trajectories) // sample_num):
+            sample_trajectories = train_trajectories[train_step * sample_num: (train_step + 1) * sample_num]
 
-#             results = trainer.infer(sample_trajectories, batch_size)
-#             sample_trajectories = update_trajectory(sample_trajectories, results)
+            results = trainer.infer(sample_trajectories, batch_size)
+            sample_trajectories = update_trajectory(sample_trajectories, results)
             
-#             replay_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(sample_trajectories))
+            replay_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(sample_trajectories))
 
-#             for d in sample_trajectories:
-#                 replay_buffer.insert(**d)
+            for d in sample_trajectories:
+                replay_buffer.insert(**d)
 
-#             logs.extend(trainer.update_policy(replay_buffer, is_validation=False, batch_size=batch_size))
+            logs.extend(trainer.update_policy(replay_buffer, is_validation=False, batch_size=batch_size))
 
-#         results = trainer.infer(val_trajectories, batch_size)
-#         val_trajectories = update_trajectory(val_trajectories, results)
-#         validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
-#         for d in val_trajectories:
-#             validation_buffer.insert(**d)
-#         logs.extend(trainer.update_policy(validation_buffer, is_validation=True, batch_size=batch_size))
-
-#         if accelerator.is_main_process:
-#             print("### saving")
-#             if not os.path.exists(save_path):
-#                 os.mkdir(save_path)
-#             if not os.path.exists(os.path.join(save_path, f"epoch_{epoch}")):
-#                 os.mkdir(os.path.join(save_path, f"epoch_{epoch}"))
-#             trainer.save(os.path.join(save_path, f"epoch_{epoch}"))
-#             utils.write_jsonl(logs, os.path.join(save_path, f"epoch_{epoch}", "train_log.jsonl"))
-#             utils.plot_loss(os.path.join(save_path, f"epoch_{epoch}"), keys=["train loss", "train Q value", "val loss", "val Q value"])
+        results = trainer.infer(val_trajectories, batch_size)
+        val_trajectories = update_trajectory(val_trajectories, results)
+        validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
+        for d in val_trajectories:
+            validation_buffer.insert(**d)
+        logs.extend(trainer.update_policy(validation_buffer, is_validation=True, batch_size=batch_size))
+        
+        save_path = f"checkpoints/{config['model_name']}"
+        print(f"### save model at: {save_path}")
+        if accelerator.is_main_process:
+            print("### saving")
+            if not os.path.exists(save_path):
+                os.mkdir(save_path)
+            if not os.path.exists(os.path.join(save_path, f"epoch_{epoch}")):
+                os.mkdir(os.path.join(save_path, f"epoch_{epoch}"))
+            trainer.save(os.path.join(save_path, f"epoch_{epoch}"))
+            utils.write_jsonl(logs, os.path.join(save_path, f"epoch_{epoch}", "train_log.jsonl"))
+            utils.plot_loss(os.path.join(save_path, f"epoch_{epoch}"), keys=["train loss", "train Q value", "val loss", "val Q value"])
 
 
 def evaluation(agent, accelerator, config):
@@ -357,7 +383,6 @@ def evaluation(agent, accelerator, config):
         os.mkdir(result_dir)
 
     compute_matrix(results, position_dict)
-
 
 
 def main(config):

@@ -73,6 +73,9 @@ class ReplayBuffer:
         self.policy_outputs = None
         self.policy_inputs = None
         self.policy_images = None
+        self.action_lists = None
+        self.tasks = None
+        self.step_ids = None
 
     def sample(self, batch_size=None):
         rand_indices = np.random.randint(0, self.current_size, size=batch_size) % self.max_size
@@ -81,7 +84,10 @@ class ReplayBuffer:
             "critic_inputs": self.critic_inputs[rand_indices],
             "policy_outputs": self.policy_outputs[rand_indices],
             "policy_inputs": self.policy_inputs[rand_indices],
-            "policy_images": self.policy_images[rand_indices]
+            "policy_images": self.policy_images[rand_indices],
+            "action_lists": self.action_lists[rand_indices],
+            "tasks": self.tasks[rand_indices],
+            "step_ids": self.step_ids[rand_indices]
         }
 
     def __len__(self):
@@ -92,6 +98,9 @@ class ReplayBuffer:
         policy_output,
         policy_input,
         policy_image,
+        action_list,
+        task,
+        step_id, 
         critic_image="",
         critic_input="",
         **kwargs
@@ -102,12 +111,18 @@ class ReplayBuffer:
             self.policy_outputs = np.array([''] * self.max_size, dtype="object")
             self.policy_inputs = np.array([''] * self.max_size, dtype="object")
             self.policy_images = np.array([''] * self.max_size, dtype="object")
+            self.action_lists = np.array([''] * self.max_size, dtype="object")
+            self.tasks = np.array([''] * self.max_size, dtype="object")
+            self.step_ids = np.array([''] * self.max_size, dtype="object")
 
         self.critic_images[self.current_size % self.max_size] = critic_image
         self.critic_inputs[self.current_size % self.max_size] = critic_input
         self.policy_outputs[self.current_size % self.max_size] = policy_output
         self.policy_inputs[self.current_size % self.max_size] = policy_input
         self.policy_images[self.current_size % self.max_size] = policy_image
+        self.action_lists[self.current_size % self.max_size] = action_list
+        self.tasks[self.current_size % self.max_size] = task
+        self.step_ids[self.current_size % self.max_size] = step_id
 
         self.current_size += 1
 
@@ -152,22 +167,39 @@ def qwen_action2step(step_data):
 
 
 class Qwen2VLDataset():
-    def __init__(self, anns):
-        query_format = "Please generate the next move according to the ui screenshot, instruction and previous actions. Instruction: {}. Previous actions: {}"
-        self.anns = []
-        for ann in anns:
-            task, history = ann["task"], []
-            for i, step in enumerate(ann["action_list"]):
-                format_action = qwen_action2step(step)
-                history.append('Step' + str(i) + ': ' + format_action + ". ") 
+    def __init__(self, anns, is_train):
+        if is_train is False:
+            query_format = "Please generate the next move according to the ui screenshot, instruction and previous actions. Instruction: {}. Previous actions: {}"
+            self.anns = []
+            for ann in anns:
+                task, history = ann["task"], []
+                for i, step in enumerate(ann["action_list"]):
+                    format_action = qwen_action2step(step)
+                    history.append('Step' + str(i) + ': ' + format_action + ". ") 
+                    
+                self.anns.append({
+                    "ep_id": ann["ep_id"],
+                    "step_id": ann["step_id"],
+                    "policy_input": query_format.format(task, "".join(history[:ann["step_id"]])),
+                    "policy_image": ann["policy_image"],
+                    "policy_output": ann["policy_output"]
+                })
+        else:
+            query_format = "Please generate the next move according to the ui screenshot, instruction and previous actions. Instruction: {}. Previous actions: {}"
+            self.anns = []
+            for ann in anns:
+                task, history = ann["tasks"], []
+                for i, step in enumerate(ann["action_lists"]):
+                    format_action = qwen_action2step(step)
+                    history.append('Step' + str(i) + ': ' + format_action + ". ") 
                 
-            self.anns.append({
-                "ep_id": ann["ep_id"],
-                "step_id": ann["step_id"],
-                "policy_input": query_format.format(task, "".join(history[:ann["step_id"]])),
-                "policy_image": ann["policy_image"],
-                "policy_output": ann["policy_output"]
-            })
+                self.anns.append({
+                    "policy_inputs": query_format.format(task, "".join(history[:ann["step_ids"]])),
+                    "policy_images": ann["policy_images"],
+                    "policy_outputs": ann["policy_outputs"],
+                    "critic_inputs": ann["critic_inputs"],
+                    "critic_images": ann["critic_images"]
+                })
 
 
     def __len__(self):

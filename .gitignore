@@ -9,5 +9,6 @@ cloudgpt-apim-token-cache.bin
 .idea
 auto_save.sh
 images
-./logs/
-./outputs/
+logs/
+outputs/
+azcopy_linux_amd64_10.27.1/
