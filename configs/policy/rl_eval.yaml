@@ -1,8 +1,8 @@
 run_name: 'digirl-general-online'
-save_path: './checkpoints/general-off2on-digirl'
+save_path: 'checkpoints/rl-general-negative/epoch_2'
 
 # data 
-data_path: './data/aitw_anns/1218/general_train_policy.jsonl'
+data_path: './data/aitw_anns/0108/general_train_policy.jsonl'
 
 # model setting
 policy_lm: './checkpoints/Auto-UI-Base'
@@ -26,4 +26,5 @@ max_new_tokens: 128
 
 # evaluation
 eval_only: True
-eval_path: './data/aitw_anns/1218/general_val_policy.jsonl'
+test_task: aitw_general
+eval_path: './data/aitw_anns/0108/general_val_policy.jsonl'

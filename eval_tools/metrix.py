@@ -2,6 +2,8 @@ import numpy as np
 
 import jax.numpy as jnp
 import numpy as np
+import re
+import ast
 from data_preprocess.utils import autoui_translate_action
 
 _TAP_DISTANCE_THRESHOLD = 0.14   
@@ -180,7 +182,7 @@ def check_actions_match(
       is_tap_action(action_1_touch_yx, action_1_lift_yx),
       is_tap_action(action_2_touch_yx, action_2_lift_yx),
   )
-
+  
   taps_match = _check_tap_actions_match(
       action_1_touch_yx,
       action_2_touch_yx,
@@ -208,6 +210,35 @@ def check_actions_match(
   )
 
 
+def str_2_format(output):
+    try:
+      pattern = r'(?<=Action Decision:\s).*'
+      pred_str = "{" + re.search(pattern, output).group(0).strip() + "}"
+      step_data = ast.literal_eval(pred_str)
+      action_type = str(step_data["action_type"])
+      
+      if action_type == "DUAL_POINT":
+          touch_point = ast.literal_eval(step_data["touch_point"])
+          lift_point = ast.literal_eval(step_data["lift_point"])
+      else:
+          touch_point = [-1.0, -1.0]
+          lift_point = [-1.0, -1.0]
+
+      if action_type == "TYPE":
+          typed_text = step_data["typed_text"]
+      else:
+          typed_text = ""
+
+      action = {"action_type": action_type, "touch_point": touch_point, "lift_point": lift_point, "typed_text": typed_text.lower()}
+
+      action["touch_point"] = [action["touch_point"][1], action["touch_point"][0]]
+      action["lift_point"] = [action["lift_point"][1], action["lift_point"][0]]
+    except:
+      action = {"action_type": "", "touch_point": [-1.0, -1.0], "lift_point": [-1.0, -1.0], "typed_text": ""}
+    
+    return action
+
+
 def compute_matrix(anns, position_dict):
     ep2ann = {}
     for ann in anns:
@@ -223,20 +254,25 @@ def compute_matrix(anns, position_dict):
         for step in ann:
             step_num += 1
             
-            pred = autoui_translate_action(step["output"])
-            groundtruth = autoui_translate_action(step["groundtruth"])
+            pred = str_2_format(step["output"])
+            groundtruth = str_2_format(step["groundtruth"])
+            
             position = position_dict[f"{step['ep_id']}_{step['step_id']}"]
             annot_position = np.array([position[i:i + 4] for i in range(0, len(position), 4)])
             
-            check_match = check_actions_match(
-                pred.touch_point, 
-                pred.lift_point,
-                pred.action_type, 
-                groundtruth.touch_point,
-                groundtruth.lift_point, 
-                groundtruth.action_type,
-                annot_position
-            )
+            try:
+              check_match = check_actions_match(
+                  pred["touch_point"], 
+                  pred["lift_point"],
+                  pred["action_type"], 
+                  groundtruth["touch_point"],
+                  groundtruth["lift_point"], 
+                  groundtruth["action_type"],
+                  annot_position
+              )
+            except:
+               print("error")
+               check_match = False
             
             if check_match == True:
                 succ_step += 1

@@ -67,11 +67,24 @@ if __name__ == "__main__":
 
     if args.model == "autoui":
         model_name = "checkpoints/Auto-UI-Base"
-    elif args.model == "digirl":
+    elif args.model == "digirl_general_online":
         model_name = "checkpoints/general-off2on-digirl"
-    elif args.model == "our":
+    elif args.model == "digirl_webshop_online":
+        model_name = "checkpoints/webshop-off2on-digirl"
+    elif args.model == "digirl_general_offline":
+        model_name = "checkpoints/digirl-general-offline"
+    elif args.model == "digirl_webshop_offline":
+        model_name = "checkpoints/digirl-webshop-offline"
+    elif args.model == "our_general":
         model_name = "checkpoints/rl-1227/epoch_13"
+    elif args.model == "our_general_negative":
+        model_name = "checkpoints/rl-general-negative/epoch_8"
+    elif args.model == "our_webshop":
+        model_name = "checkpoints/rl-webshop/epoch_10"
+    elif args.model == "our_webshop_negative":
+        model_name = "checkpoints/rl-webshop-negative/epoch_3"
     else:
         model_name = ""
     
+    print(f"### model_name: {model_name}")
     main(model_name)

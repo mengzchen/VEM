@@ -5,8 +5,8 @@
 #SBATCH --nodes 1
 #SBATCH --mail-type "BEGIN,END,FAIL"
 #SBATCH --mail-user "v-zhengjiani@microsoft.com"
-#SBATCH --output logs/critic.log
-#SBATCH --error logs/critic.log
+#SBATCH --output logs/critic_shopping.log
+#SBATCH --error logs/critic_shopping.log
 
 # run
 llamafactory-cli train configs/critic/critic_train.yaml

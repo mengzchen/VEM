@@ -1,12 +1,12 @@
 run_name: 'digirl-general-online'
-save_path: './checkpoints/rl-01018-negative'
+save_path: './checkpoints/rl-webshop-negative'
 
 # data 
-data_path: './data/aitw_anns/0108/general_train_policy.jsonl'
+data_path: './data/aitw_anns/0108/webshopping_train_policy.jsonl'
 
 # model setting
 policy_lm: './checkpoints/Auto-UI-Base'
-critic_lm: './checkpoints/critic_0108_negative/merge-520'
+critic_lm: './checkpoints/critic_shopping_negative/merge-1040'
 
 # hparams
 epochs: 20
@@ -24,4 +24,4 @@ max_new_tokens: 128
 
 # evaluation
 eval_only: False
-eval_path: './data/aitw_anns/0108/general_val_policy.jsonl'
+eval_path: './data/aitw_anns/0108/webshopping_val_policy.jsonl'

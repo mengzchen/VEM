@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Tuple
 from dataclasses import dataclass
+import re
 
 import utils
 from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
@@ -150,41 +151,36 @@ def autoui_translate_action(raw_action):
 
 
 def cogagent_translate_action(raw_action):
-    try:
-        raw_action = raw_action.split('Grounded Operation:')[1]
-        action = raw_action.split(" ")[0]
-        if action == 'tap':
-            numbers = raw_action.split('[[')[1].split(',')
-            x = int(numbers[0])
-            y = int(numbers[1].split(']]')[0])
-            touch_point = (x/1000, y/1000)
-            return AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point, lift_point=touch_point)
-        elif "type" in action:
-            text = raw_action.split('"')[1]
-            return AndroidAction(action_type=ActionType.Type, typed_text=text)
-        elif "press home" in raw_action:
-            return AndroidAction(action_type=ActionType.GoHome)
-        elif "press back" in raw_action:
-            return AndroidAction(action_type=ActionType.GoBack)
-        elif "press enter" in raw_action:
-            return AndroidAction(action_type=ActionType.Enter)
-        elif "task complete" in raw_action:
-            return AndroidAction(action_type=ActionType.TaskComplete)
-        elif "task impossible" in raw_action:
-            return AndroidAction(action_type=ActionType.TaskImpossible)
-        elif "swipe up" in raw_action:
-            return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.5), lift_point=(0.5, 0.2))
-        elif "swipe down" in raw_action:
-            return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.2), lift_point=(0.5, 0.5))
-        elif "swipe left" in raw_action:
-            return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.8, 0.5), lift_point=(0.2, 0.5))
-        elif "swipe right" in raw_action:
-            return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.2, 0.5), lift_point=(0.8, 0.5))
-        else:
-            print(f"Action {raw_action} not supported yet.")
-            return AndroidAction(action_type=ActionType.Idle)
-    except Exception as e:
-        print(f"Action {raw_action} Parsing Error: {e}")
+    raw_action = raw_action.split('Grounded Operation:')[1].split("\n")[0]
+    action = raw_action.split("(")[0].strip()
+    
+    if action == 'CLICK':
+        box = [int(num) for num in raw_action.split("[[")[1].split("]]")[0].split(",")]
+        touch_point = [(box[0] + box[2])/2000, (box[1] + box[3])/2000]
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=touch_point, lift_point=touch_point)
+    elif "TYPE" in action:
+        text = raw_action.split(", ")[1].replace("text=", "").replace("'", "")
+        return AndroidAction(action_type=ActionType.Type, typed_text=text.lower())
+    elif "PRESS_HOME" in raw_action:
+        return AndroidAction(action_type=ActionType.GoHome)
+    elif "press back" in raw_action:
+        return AndroidAction(action_type=ActionType.GoBack)
+    elif "press enter" in raw_action:
+        return AndroidAction(action_type=ActionType.Enter)
+    elif "END" in raw_action:
+        return AndroidAction(action_type=ActionType.TaskComplete)
+    elif "SCROLL_UP" in raw_action:
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.5), lift_point=(0.5, 0.2))
+    elif "SCROLL_DOWN" in raw_action:
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.5, 0.2), lift_point=(0.5, 0.5))
+    elif "SCROLL_LEFT" in raw_action:
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.8, 0.5), lift_point=(0.2, 0.5))
+    elif "SCROLL_RIGHT" in raw_action:
+        return AndroidAction(action_type=ActionType.DualPoint, touch_point=(0.2, 0.5), lift_point=(0.8, 0.5))
+    elif "QUOTE_TEXT" in raw_action:
+        return AndroidAction(action_type=ActionType.Type, typed_text="")
+    else:
+        print(f"{raw_action} not supported yet.")
         return AndroidAction(action_type=ActionType.Idle)
     
 

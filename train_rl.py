@@ -265,16 +265,19 @@ def onpolicy_train_loop(
 def eval_loop(
     agent,
     accelerator,
-    eval_path: str = None,
-    save_path: str = None,
-    batch_size: int = 2,
+    eval_path,
+    save_path,
+    batch_size,
+    test_task,
     **kwargs
 ):
     model_name = "_".join(save_path.split("/")[-2:]).replace("checkpoints_", "")
-
-    result_wpath = os.path.join("checkpoints/results", f"{model_name}_results.jsonl")
-
+    result_dir = f"checkpoints/{test_task}_result"
+    result_wpath = os.path.join(result_dir, f"{test_task}_{model_name}_results.jsonl")
+    print(f"### result path: {result_wpath}")
+    
     position_anns = utils.read_jsonl(eval_path)
+    
     position_dict = {}
     for ann in position_anns:
         position_dict[f"{ann['ep_id']}_{ann['step_id']}"] = ann["position"]
@@ -294,11 +297,11 @@ def eval_loop(
         results = trainer.infer(trajectories, batch_size)
         utils.write_jsonl(results, result_wpath)
 
-    if not os.path.exists("checkpoints/results"):
-        os.mkdir("checkpoints/results")
+    if not os.path.exists(result_dir):
+        os.mkdir(result_dir)
 
-    for file in os.listdir("checkpoints/results"):
-        result_wpath = os.path.join("checkpoints/results", file)
+    for file in os.listdir(result_dir):
+        result_wpath = os.path.join(result_dir, file)
         results = utils.read_jsonl(result_wpath)
         print(f"================{result_wpath.split('/')[2]}================")
         compute_matrix(results, position_dict)

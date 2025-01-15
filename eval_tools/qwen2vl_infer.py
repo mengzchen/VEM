@@ -86,4 +86,4 @@ class Infer:
         utils.write_jsonl(results, f"{self.model_path}/results.jsonl")
         self.compute_metrix(results)
 
-Infer(model_name="critic_1218", step="520").infer_all()
+Infer(model_name="critic_0108_negative", step="590").infer_all()
