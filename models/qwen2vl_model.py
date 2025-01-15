@@ -35,14 +35,13 @@ class Qwen2VLAgent(torch.nn.Module):
     def get_log_prob(self, texts, image_paths, targets):
         total_loss = 0
         for text, image_path, target in zip(texts, image_paths, targets):
-            target_id = self.tokenizer(target).to(self.model.device)
-            print(target_id)
-            exit()
             query = self.tokenizer.from_list_format([{'image': image_path}, {'text': text}])
-            logits = self.model.get_logits(self.tokenizer, query=query, history=None)
+            logits, target_ids = self.model.get_logits(self.tokenizer, query=query, target=target)
             
             prediction_probs = self.softmax(logits)
-            selected_prediction_probs = torch.take_along_dim(prediction_probs, target_id["input_ids"].unsqueeze(2), dim=2).squeeze(2)
+            print(prediction_probs.shape)
+            print(target_ids.shape)
+            selected_prediction_probs = torch.take_along_dim(prediction_probs, target_ids.unsqueeze(2), dim=2).squeeze(2)
             selected_prediction_probs = torch.clamp(selected_prediction_probs, min=0.001, max=0.99)
             
             loss = torch.log(selected_prediction_probs)
