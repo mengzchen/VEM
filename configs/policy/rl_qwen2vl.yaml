@@ -13,5 +13,5 @@ critic_lm: './checkpoints/critic_1218/merge-520'
 
 # hparams
 epochs: 20
-batch_size: 3
-grad_accum_steps: 1
+batch_size: 1
+grad_accum_steps: 32

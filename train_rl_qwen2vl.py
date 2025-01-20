@@ -224,9 +224,8 @@ class DigiRLTrainer:
         q_values = torch.tensor(q_values, dtype=dtype, requires_grad=True).to(self.agent.model.device)
 
         q_values = q_values / 2
-        
+    
         log_prob = self.agent.get_log_prob(policy_inputs, policy_images, policy_outputs).sum(dim=1).flatten()
-
         pg_loss = - torch.mean(log_prob * q_values)
 
         if not validation:

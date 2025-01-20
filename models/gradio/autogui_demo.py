@@ -80,7 +80,7 @@ if __name__ == "__main__":
     elif args.model == "our_general_negative":
         model_name = "checkpoints/rl-general-negative/epoch_8"
     elif args.model == "our_webshop":
-        model_name = "checkpoints/rl-webshop/epoch_10"
+        model_name = "checkpoints/rl-webshop/epoch_13"
     elif args.model == "our_webshop_negative":
         model_name = "checkpoints/rl-webshop-negative/epoch_3"
     else:

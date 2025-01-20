@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 
-# export blob_dir="https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani"
-# export SAS="?sv=2023-01-03&st=2025-01-09T13%3A32%3A31Z&se=2025-01-16T13%3A32%3A00Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2025-01-09T13%3A32%3A31Z&ske=2025-01-16T13%3A32%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=Z7P%2Fneos%2BfLVmyDugwFzLTppeYpD7KArUlOt%2FgmLuwM%3D"
-
-# azcopy_linux_amd64_10.27.1/azcopy copy ./checkpoints "$blob_dir$SAS"  --recursive
-# ./azcopy copy  "$blob_dir/images/aitw_images/webshopping$SAS" ./ --recursive
+export blob_dir="https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani"
+export SAS="?sv=2023-01-03&st=2025-01-20T06%3A32%3A26Z&se=2025-01-27T06%3A32%3A00Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2025-01-20T06%3A32%3A26Z&ske=2025-01-27T06%3A32%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=O68bHOfvc7naJ4oGFutChdJYpGFzpsHQ%2BTygtZqTqQ0%3D"
+azcopy_linux_amd64_10.27.1/azcopy copy ./checkpoints "$blob_dir$SAS"  --recursive
+# azcopy copy ./checkpoints "$blob_dir$SAS" --recursive
 
 # get data
 # wget https://aka.ms/downloadazcopy-v10-linux
