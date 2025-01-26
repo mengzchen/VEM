@@ -4,6 +4,8 @@ from transformers import AutoProcessor, Qwen2VLForConditionalGeneration, AutoMod
 from transformers.generation import GenerationConfig
 from transformers.trainer_pt_utils import LabelSmoother
 from peft import LoraConfig, get_peft_model
+from peft import AutoPeftModelForCausalLM
+
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
@@ -57,48 +59,55 @@ def preprocess(
 
 
 class Qwen2VLAgent(torch.nn.Module):
-    def __init__(self, accelerator, config):
+    def __init__(self, accelerator, config, is_eval):
         super(Qwen2VLAgent, self).__init__()
-        print(f"### load policy: {config['policy_lm']}")
-        self.model = AutoModelForCausalLM.from_pretrained(
-            config["policy_lm"], 
-            trust_remote_code=True, 
-            torch_dtype=torch.bfloat16
-        ).to("cuda:0")
-        # customized LoRA parameters
-        target_modules = []
-        target_layer_names = ["visual.conv1", "attn.in_proj", "attn.out_proj", "mlp.c_fc", "mlp.c_proj", "c_attn",
-                            "attn.c_proj", "w1", "w2"]
-        lora_supported_types = [torch.nn.Linear, torch.nn.Embedding, torch.nn.Conv2d, transformers.pytorch_utils.Conv1D]
-        for name, module in self.model.named_modules():
-            if any(t_name in name for t_name in target_layer_names) and 'attn_pool' not in name:
-                if isinstance(module, tuple(lora_supported_types)):
-                    target_modules.append(name)
-                else:
-                    print(name + " not satisfy lora")
-                    input()
-        modules_to_save = ["wte", "lm_head"]
-        lora_config = LoraConfig(
-            r=64,
-            lora_alpha=16,
-            target_modules=target_modules,
-            lora_dropout=0.05,
-            task_type="CAUSAL_LM",
-            modules_to_save=modules_to_save  # This argument serves for adding new tokens.
-        )
-        self.model = get_peft_model(self.model, lora_config)
-        self.model.enable_input_require_grads()
+        if not is_eval:
+            print(f"### load policy: {config['policy_lm']}")
+            self.model = AutoModelForCausalLM.from_pretrained(
+                config["policy_lm"], 
+                trust_remote_code=True, 
+                torch_dtype=torch.bfloat16
+            ).to(config["policy_device"])
+            # customized LoRA parameters
+            target_modules = []
+            target_layer_names = ["visual.conv1", "attn.in_proj", "attn.out_proj", "mlp.c_fc", "mlp.c_proj", "c_attn",
+                                "attn.c_proj", "w1", "w2"]
+            lora_supported_types = [torch.nn.Linear, torch.nn.Embedding, torch.nn.Conv2d, transformers.pytorch_utils.Conv1D]
+            for name, module in self.model.named_modules():
+                if any(t_name in name for t_name in target_layer_names) and 'attn_pool' not in name:
+                    if isinstance(module, tuple(lora_supported_types)):
+                        target_modules.append(name)
+                    else:
+                        print(name + " not satisfy lora")
+                        input()
+            modules_to_save = ["wte", "lm_head"]
+            lora_config = LoraConfig(
+                r=64,
+                lora_alpha=16,
+                target_modules=target_modules,
+                lora_dropout=0.05,
+                task_type="CAUSAL_LM",
+                modules_to_save=modules_to_save  # This argument serves for adding new tokens.
+            )
+            self.model = get_peft_model(self.model, lora_config)
+            self.model.enable_input_require_grads()
 
-        self.model.transformer.visual.requires_grad_(False)
-        if hasattr(self.model.transformer.visual, 'attn_pool'):
-            self.model.transformer.visual.attn_pool.requires_grad_(True)
+            self.model.transformer.visual.requires_grad_(False)
+            if hasattr(self.model.transformer.visual, 'attn_pool'):
+                self.model.transformer.visual.attn_pool.requires_grad_(True)
+        else:
+            self.model = AutoPeftModelForCausalLM.from_pretrained(
+                config["save_model"], 
+                trust_remote_code=True, 
+                torch_dtype=torch.bfloat16
+            ).to(config["policy_device"])
 
         self.tokenizer = AutoTokenizer.from_pretrained(config["qwen_path"], padding_side="right", use_fast=False,trust_remote_code=True)
         self.tokenizer.pad_token_id = self.tokenizer.eod_id
         self.model.generation_config = GenerationConfig.from_pretrained(config["qwen_path"], trust_remote_code=True)
         
         print(f"### load critic: {config['critic_lm']}")
-        self.critic = Qwen2VLForConditionalGeneration.from_pretrained(config['critic_lm'], torch_dtype=torch.bfloat16).to("cuda:1")
+        self.critic = Qwen2VLForConditionalGeneration.from_pretrained(config['critic_lm'], torch_dtype=torch.bfloat16).to(config["critic_device"])
         print(f"### {self.model.device} {self.critic.device}")
         
         for param in self.critic.parameters():

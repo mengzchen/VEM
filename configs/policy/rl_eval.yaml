@@ -1,5 +1,5 @@
 run_name: 'digirl-general-online'
-save_path: 'checkpoints/rl-general-negative/epoch_2'
+save_path: 'checkpoints/seeclick_general/epoch_5'
 
 # data 
 data_path: './data/aitw_anns/0108/general_train_policy.jsonl'

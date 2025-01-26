@@ -2,8 +2,6 @@ tqdm
 torch
 accelerate
 peft
-google-generativeai
-jupyter
 openpyxl
 opencv-python
 qwen-vl-utils
@@ -12,6 +10,13 @@ jax
 transformers==4.46.1
 tokenizers==0.20.3
 scikit-learn
-omegaconf
-hydra
 Appium-Python-Client
+pyyaml
+pandas
+gradio
+spaces
+omegaconf
+matplotlib
+einops 
+transformers_stream_generator
+tiktoken

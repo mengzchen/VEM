@@ -1,0 +1,19 @@
+model_name: seeclick_webshop_v2
+
+# data 
+test_task: aitw_webshopping
+train_data: './data/aitw_anns/0108/webshopping_train_policy.jsonl'
+eval_data: './data/aitw_anns/0108/webshopping_val_policy.jsonl'
+
+# model setting
+policy_device: 'cuda:0'
+critic_device: 'cuda:1'
+qwen_path: './checkpoints/Qwen-VL-Chat'
+policy_lm: './checkpoints/SeeClick-aitw'
+save_model: ''
+critic_lm: './checkpoints/critic_shopping/merge-970'
+
+# hparams
+epochs: 20
+batch_size: 1
+grad_accum_steps: 32

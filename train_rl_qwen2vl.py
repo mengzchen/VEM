@@ -16,42 +16,47 @@ from models.qwen2vl_model import Qwen2VLAgent
 from dataset.digirl_dataset import Qwen2VLDataset, ReplayBuffer, qwen_action2step
 from eval_tools.metrix import str_2_format, check_actions_match
 from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
+from transformers import PreTrainedModel
+from peft import PeftModel
 
 
 def qwen2vl_translate_action(step_data):
-    step_data = ast.literal_eval(step_data)
-    action_type, touch_point, lift_point, text = step_data["action_type"], [-1.0, -1.0], [-1.0, -1.0], ""
+    try:
+        step_data = ast.literal_eval(step_data)
+        action_type, touch_point, lift_point, text = step_data["action_type"], [-1.0, -1.0], [-1.0, -1.0], ""
 
-    if action_type == 4:
-        action_type_new = "DUAL_POINT"
-        touch_point, lift_point = step_data["click_point"], step_data["click_point"]
-    elif action_type == 3:
-        action_type_new = "TYPE"
-        text = step_data["typed_text"]
-    elif action_type == 0:
-        action_type_new = "DUAL_POINT"
-        touch_point, lift_point = [0.5, 0.8], [0.5, 0.2]
-    elif action_type == 1:
-        action_type_new = "DUAL_POINT"
-        touch_point, lift_point = [0.5, 0.2], [0.5, 0.8]
-    elif action_type == 8:
-        action_type_new = "DUAL_POINT"
-        touch_point, lift_point = [0.2, 0.5], [0.8, 0.5]
-    elif action_type == 9:
-        action_type_new = "DUAL_POINT"
-        touch_point, lift_point = [0.8, 0.5], [0.2, 0.5]        
-    elif action_type == 6:
-        action_type_new = "PRESS_HOME"
-    elif action_type == 5:
-        action_type_new = "PRESS_BACK"
-    elif action_type == 7:
-        action_type_new = "PRESS_ENTER"
-    elif action_type == 10:
-        action_type_new = "STATUS_TASK_COMPLETE"
-    elif action_type == 11:
+        if action_type == 4:
+            action_type_new = "DUAL_POINT"
+            touch_point, lift_point = step_data["click_point"], step_data["click_point"]
+        elif action_type == 3:
+            action_type_new = "TYPE"
+            text = step_data["typed_text"]
+        elif action_type == 0:
+            action_type_new = "DUAL_POINT"
+            touch_point, lift_point = [0.5, 0.8], [0.5, 0.2]
+        elif action_type == 1:
+            action_type_new = "DUAL_POINT"
+            touch_point, lift_point = [0.5, 0.2], [0.5, 0.8]
+        elif action_type == 8:
+            action_type_new = "DUAL_POINT"
+            touch_point, lift_point = [0.2, 0.5], [0.8, 0.5]
+        elif action_type == 9:
+            action_type_new = "DUAL_POINT"
+            touch_point, lift_point = [0.8, 0.5], [0.2, 0.5]        
+        elif action_type == 6:
+            action_type_new = "PRESS_HOME"
+        elif action_type == 5:
+            action_type_new = "PRESS_BACK"
+        elif action_type == 7:
+            action_type_new = "PRESS_ENTER"
+        elif action_type == 10:
+            action_type_new = "STATUS_TASK_COMPLETE"
+        elif action_type == 11:
+            action_type_new = "STATUS_TASK_IMPOSSIBLE"
+        else:
+            pass
+    except:
         action_type_new = "STATUS_TASK_IMPOSSIBLE"
-    else:
-        pass
     
 
     action = {"action_type": action_type_new, "touch_point": touch_point, "lift_point": lift_point, "typed_text": text.lower()}
@@ -115,9 +120,9 @@ def compute_matrix(anns, position_dict):
                 pred = qwen2vl_translate_action(step["output"])
                 groundtruth = str_2_format(step["groundtruth"])
                 
-                print(pred)
-                print(groundtruth)
-                print("=========")
+                # print(pred)
+                # print(groundtruth)
+                # print("=========")
                 
                 position = position_dict[f"{step['ep_id']}_{step['step_id']}"]
                 annot_position = np.array([position[i:i + 4] for i in range(0, len(position), 4)])
@@ -224,7 +229,7 @@ class DigiRLTrainer:
         q_values = torch.tensor(q_values, dtype=dtype, requires_grad=True).to(self.agent.model.device)
 
         q_values = q_values / 2
-    
+
         log_prob = self.agent.get_log_prob(policy_inputs, policy_images, policy_outputs).sum(dim=1).flatten()
         pg_loss = - torch.mean(log_prob * q_values)
 
@@ -275,7 +280,7 @@ class DigiRLTrainer:
         dataloader = self.accelerator.prepare(dataloader)
 
         results = []
-        for batch in tqdm(dataloader):
+        for batch in dataloader:
             ep_ids, step_ids = batch["ep_id"], batch["step_id"]
             texts, groundtruths, image_paths = batch["policy_input"], batch["policy_output"], batch["policy_image"]
 
@@ -289,10 +294,26 @@ class DigiRLTrainer:
 
     def save(self, path):
         self.accelerator.save_state(path, safe_serialization=False)
+    
+
+    def _save(self, output_dir, state_dict):
+        os.makedirs(output_dir, exist_ok=True)
+
+        self.agent.model.save_pretrained(
+            output_dir, state_dict=state_dict, safe_serialization=True
+        )
 
 
     def load(self, path):
         self.accelerator.load_state(path)
+
+
+def get_peft_state_maybe_zero_3(named_params):
+    to_return = {k: t for k, t in named_params if "lora_" in k}
+    
+    to_return = {k: v.detach().cpu().clone() for k, v in to_return.items()}
+
+    return to_return
 
 
 def train(agent, accelerator, config):
@@ -305,9 +326,6 @@ def train(agent, accelerator, config):
 
     all_trajectories = utils.read_jsonl(config["train_data"])
 
-    # agent.prepare()
-    # trainer.prepare()
-
     print(f"### all trajectories: {len(all_trajectories)}")
 
     logs = []
@@ -317,7 +335,7 @@ def train(agent, accelerator, config):
     sample_num = batch_size * config["grad_accum_steps"]
     for epoch in range(config["epochs"]):
         print(f"### epoch {epoch}")
-        for train_step in range(len(train_trajectories) // sample_num):
+        for train_step in tqdm(range(len(train_trajectories) // sample_num)):
             sample_trajectories = train_trajectories[train_step * sample_num: (train_step + 1) * sample_num]
 
             results = trainer.infer(sample_trajectories, batch_size)
@@ -330,6 +348,22 @@ def train(agent, accelerator, config):
 
             logs.extend(trainer.update_policy(replay_buffer, is_validation=False, batch_size=batch_size))
 
+        if accelerator.is_main_process:
+            save_path = f"checkpoints/{config['model_name']}"
+            print(f"### save model at: {save_path}")
+            if not os.path.exists(save_path):
+                os.mkdir(save_path)
+            if not os.path.exists(os.path.join(save_path, f"epoch_{epoch}")):
+                os.mkdir(os.path.join(save_path, f"epoch_{epoch}"))
+
+            # trainer.save(os.path.join(save_path, f"epoch_{epoch}"))
+            # TODO check the right of this code
+            state_dict = get_peft_state_maybe_zero_3(trainer.agent.model.named_parameters())
+            trainer._save(os.path.join(save_path, f"epoch_{epoch}"), state_dict=state_dict)
+
+            utils.write_jsonl(logs, os.path.join(save_path, f"epoch_{epoch}", "train_log.jsonl"))
+            utils.plot_loss(os.path.join(save_path, f"epoch_{epoch}"), keys=["train loss", "train Q value", "val loss", "val Q value"])
+        
         results = trainer.infer(val_trajectories, batch_size)
         val_trajectories = update_trajectory(val_trajectories, results)
         validation_buffer = ReplayBuffer(batch_size=batch_size, capacity=len(val_trajectories))
@@ -337,23 +371,12 @@ def train(agent, accelerator, config):
             validation_buffer.insert(**d)
         logs.extend(trainer.update_policy(validation_buffer, is_validation=True, batch_size=batch_size))
         
-        save_path = f"checkpoints/{config['model_name']}"
-        print(f"### save model at: {save_path}")
-        if accelerator.is_main_process:
-            print("### saving")
-            if not os.path.exists(save_path):
-                os.mkdir(save_path)
-            if not os.path.exists(os.path.join(save_path, f"epoch_{epoch}")):
-                os.mkdir(os.path.join(save_path, f"epoch_{epoch}"))
-            trainer.save(os.path.join(save_path, f"epoch_{epoch}"))
-            utils.write_jsonl(logs, os.path.join(save_path, f"epoch_{epoch}", "train_log.jsonl"))
-            utils.plot_loss(os.path.join(save_path, f"epoch_{epoch}"), keys=["train loss", "train Q value", "val loss", "val Q value"])
 
 
 def evaluation(agent, accelerator, config):
     result_dir = f"checkpoints/{config['test_task']}_result"
     result_wpath = os.path.join(result_dir, f"{config['test_task']}_{config['model_name']}_results.jsonl")
-    save_model = f"checkpoints/{config['model_name']}"
+
     print(f"### result path: {result_wpath}")
     
     anns = utils.read_jsonl(config['eval_data'])
@@ -369,10 +392,6 @@ def evaluation(agent, accelerator, config):
             accelerator=accelerator
         )
 
-        assert os.path.exists(save_model)
-        print(f"### Loading from previous checkpoint: {save_model}")
-        trainer.load(save_model)
-
         results = trainer.infer(anns, config["batch_size"])
         utils.write_jsonl(results, result_wpath)
     else:
@@ -382,28 +401,31 @@ def evaluation(agent, accelerator, config):
         os.mkdir(result_dir)
 
     compute_matrix(results, position_dict)
+    
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--task', type=str, required=True)
+    parser.add_argument('--eval', type=bool, default=False, required=False)
+    args = parser.parse_args()
 
-def main(config):
+    if args.task == "webshop":
+        config = "configs/policy/rl_seeclick_webshop.yaml"
+    else:
+        config = "configs/policy/rl_seeclick_general.yaml"
+
+    with open(config, 'r') as file:
+        config = yaml.safe_load(file)
+        
+    print(f"### config:\n{config}")
+    
     accelerator = Accelerator()
 
     print("### load Qwen2VLAgent")
 
-    agent = Qwen2VLAgent(accelerator=accelerator, config=config)
+    agent = Qwen2VLAgent(accelerator=accelerator, config=config, is_eval=args.eval)
 
-    if config["eval_only"]:
+    if args.eval:
         evaluation(agent=agent, accelerator=accelerator, config=config)
     else:
         train(agent=agent, accelerator=accelerator, config=config)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-
-    args = parser.parse_args()
-
-    config = "configs/policy/rl_qwen2vl.yaml"
-    with open(config, 'r') as file:
-        config = yaml.safe_load(file)
-
-    main(config)

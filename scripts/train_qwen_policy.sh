@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-#SBATCH -A berzelius-2024-341
-#SBATCH -t 0-24:0:0
-#SBATCH --gres gpu:2
-#SBATCH --nodes 1
-#SBATCH --mail-type "BEGIN,END,FAIL"
-#SBATCH --mail-user "v-zhengjiani@microsoft.com"
-#SBATCH --output logs/policy_general_qwenvl.log
-#SBATCH --error logs/policy_general_qwenvl.log
 
-# export PATH=/home/x_wenyi/.conda/envs/digirl/bin:$PATH
-python3 train_rl_qwen2vl.py 
+#SBATCH -A NAISS2024-5-401
+#SBATCH -t 0-48:0:0
+#SBATCH --partition=alvis
+#SBATCH --gpus-per-node=A100:2
+#SBATCH --cpus-per-gpu=16
+#SBATCH --nodes 1
+#SBATCH --output logs/webshop.log
+#SBATCH --error logs/webshop.log
+
+source /mimer/NOBACKUP/groups/softenable-design/zhengjiani/vlam/bin/activate
+
+# python3 train_rl_qwen2vl.py --task general
+python3 train_rl_qwen2vl.py --task webshop 
