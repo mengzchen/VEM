@@ -5,6 +5,7 @@ from transformers.generation import GenerationConfig
 from transformers.trainer_pt_utils import LabelSmoother
 from peft import LoraConfig, get_peft_model
 from peft import AutoPeftModelForCausalLM
+import os
 
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
@@ -80,7 +81,7 @@ class Qwen2VLAgent(torch.nn.Module):
                     else:
                         print(name + " not satisfy lora")
                         input()
-            modules_to_save = ["wte", "lm_head"]
+            modules_to_save = None
             lora_config = LoraConfig(
                 r=64,
                 lora_alpha=16,
@@ -91,16 +92,21 @@ class Qwen2VLAgent(torch.nn.Module):
             )
             self.model = get_peft_model(self.model, lora_config)
             self.model.enable_input_require_grads()
-
-            self.model.transformer.visual.requires_grad_(False)
-            if hasattr(self.model.transformer.visual, 'attn_pool'):
-                self.model.transformer.visual.attn_pool.requires_grad_(True)
-        else:
+            
+        elif os.path.exists(config["save_model"]):
+            print(f"### loading {config['save_model']}")
             self.model = AutoPeftModelForCausalLM.from_pretrained(
                 config["save_model"], 
                 trust_remote_code=True, 
                 torch_dtype=torch.bfloat16
             ).to(config["policy_device"])
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                config["policy_lm"], 
+                trust_remote_code=True, 
+                torch_dtype=torch.bfloat16
+            ).to(config["policy_device"])
+
 
         self.tokenizer = AutoTokenizer.from_pretrained(config["qwen_path"], padding_side="right", use_fast=False,trust_remote_code=True)
         self.tokenizer.pad_token_id = self.tokenizer.eod_id

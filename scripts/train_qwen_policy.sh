@@ -12,4 +12,5 @@
 source /mimer/NOBACKUP/groups/softenable-design/zhengjiani/vlam/bin/activate
 
 # python3 train_rl_qwen2vl.py --task general
-python3 train_rl_qwen2vl.py --task webshop 
+
+python3 train_rl_qwen2vl.py --task webshop

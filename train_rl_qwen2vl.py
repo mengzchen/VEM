@@ -20,14 +20,59 @@ from transformers import PreTrainedModel
 from peft import PeftModel
 
 
+
 def qwen2vl_translate_action(step_data):
     try:
         step_data = ast.literal_eval(step_data)
         action_type, touch_point, lift_point, text = step_data["action_type"], [-1.0, -1.0], [-1.0, -1.0], ""
 
         if action_type == 4:
-            action_type_new = "DUAL_POINT"
+            action_type = "DUAL_POINT"
             touch_point, lift_point = step_data["click_point"], step_data["click_point"]
+        elif action_type == 3:
+            action_type = "TYPE"
+            text = step_data["typed_text"]
+        elif action_type == 0:
+            action_type = "SCROLL_DOWN"
+            touch_point, lift_point = [0.5, 0.8], [0.5, 0.2]
+        elif action_type == 1:
+            action_type = "SCROLL_UP"
+            touch_point, lift_point = [0.5, 0.2], [0.5, 0.8]
+        elif action_type == 8:
+            action_type = "SCROLL_LEFT"
+            touch_point, lift_point = [0.2, 0.5], [0.8, 0.5]
+        elif action_type == 9:
+            action_type = "SCROLL_RIGHT"
+            touch_point, lift_point = [0.8, 0.5], [0.2, 0.5]        
+        elif action_type == 6:
+            action_type = "PRESS_HOME"
+        elif action_type == 5:
+            action_type = "PRESS_BACK"
+        elif action_type == 7:
+            action_type = "PRESS_ENTER"
+        elif action_type == 10:
+            action_type = "STATUS_TASK_COMPLETE"
+        elif action_type == 11:
+            action_type = "STATUS_TASK_IMPOSSIBLE"
+        else:
+            action_type, touch_point, lift_point, text = "STATUS_TASK_IMPOSSIBLE", [-1.0, -1.0], [-1.0, -1.0], ""
+    except:
+        action_type, touch_point, lift_point, text = "STATUS_TASK_IMPOSSIBLE", [-1.0, -1.0], [-1.0, -1.0], ""
+    
+
+    action = {"action_type": action_type, "touch_point": touch_point, "lift_point": lift_point, "typed_text": text.lower()}
+
+    return action
+
+
+def result_dict(step_data):
+    try:
+        step_data = ast.literal_eval(step_data)
+        action_type, touch_point, lift_point, text = step_data["action_type"], [-1.0, -1.0], [-1.0, -1.0], ""
+
+        if action_type == 4:
+            action_type_new = "DUAL_POINT"
+            touch_point, lift_point = list(step_data["click_point"]), list(step_data["click_point"])
         elif action_type == 3:
             action_type_new = "TYPE"
             text = step_data["typed_text"]
@@ -56,36 +101,24 @@ def qwen2vl_translate_action(step_data):
         else:
             pass
     except:
-        action_type_new = "STATUS_TASK_IMPOSSIBLE"
+        action_type, touch_point, lift_point, text = "STATUS_TASK_IMPOSSIBLE", [-1.0, -1.0], [-1.0, -1.0], ""
     
 
     action = {"action_type": action_type_new, "touch_point": touch_point, "lift_point": lift_point, "typed_text": text.lower()}
-
-    action["touch_point"] = [action["touch_point"][1], action["touch_point"][0]]
-    action["lift_point"] = [action["lift_point"][1], action["lift_point"][0]]
 
     return action
 
 
 def to_autoui(act):
-    action_type = act["action_type"]
-    if action_type == "DUAL_POINT" or "SCROLL" in action_type:
-        touch_point, lift_point = act["touch_point"], act["lift_point"]
-        return f'"action_type": "DUAL_POINT", "touch_point": "[{touch_point[0]}, {touch_point[1]}]", "lift_point": "[{lift_point[0]}, {lift_point[1]}]", "typed_text": ""'
-    elif action_type == "TYPE":
+    if act["action_type"] == "DUAL_POINT":
+        point = act["touch_point"]
+        return f'"action_type": "DUAL_POINT", "click_point": "[{point[0]}, {point[1]}]"'
+    elif act["action_type"] == "TYPE":
         text = act['typed_text']
-        return f'"action_type": "TYPE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": "{text}"'
-    elif action_type == "PRESS_BACK":
-        return f'"action_type": "PRESS_BACK", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
-    elif action_type == "PRESS_HOME":
-        return f'"action_type": "PRESS_HOME", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
-    elif action_type == "PRESS_ENTER":
-        return f'"action_type": "PRESS_ENTER", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
-    elif action_type == "STATUS_TASK_COMPLETE" or action_type == "STATUS_TASK_IMPOSSIBLE":
-        return f'"action_type": "STATUS_TASK_COMPLETE", "touch_point": "[-1.0, -1.0]", "lift_point": "[-1.0, -1.0]", "typed_text": ""'
+        return f'"action_type": "TYPE", "typed_text": {text}'
     else:
-        print(f"Action {act} not supported yet.")
-        return ""
+        action_type = act['action_type']
+        return f'"action_type": \"{action_type}\"'
         
 
 def update_trajectory(anns, results):
@@ -93,7 +126,7 @@ def update_trajectory(anns, results):
         new_action = qwen2vl_translate_action(result["output"])
         new_action_desc = to_autoui(new_action)
         
-        history_action_desc = "\n".join(ann["action_desc_list"][:ann["step_id"] - 1]) + "\n" + new_action_desc
+        history_action_desc = "\n".join(ann["action_desc_list"][:ann["step_id"]])
         
         ann["critic_input"] = prompt_critic_system + prompt_critic_user.format(ann["task"], history_action_desc, new_action_desc)
         ann["policy_output"] = qwen_action2step(new_action)
@@ -117,12 +150,8 @@ def compute_matrix(anns, position_dict):
         for step in ann:
             step_num += 1
             try:
-                pred = qwen2vl_translate_action(step["output"])
+                pred = result_dict(step["output"])
                 groundtruth = str_2_format(step["groundtruth"])
-                
-                # print(pred)
-                # print(groundtruth)
-                # print("=========")
                 
                 position = position_dict[f"{step['ep_id']}_{step['step_id']}"]
                 annot_position = np.array([position[i:i + 4] for i in range(0, len(position), 4)])
@@ -136,6 +165,12 @@ def compute_matrix(anns, position_dict):
                     groundtruth["action_type"],
                     annot_position
                 )
+
+                if not check_match:
+                    # print("pred: ", pred)
+                    # print("goal: ", groundtruth)
+                    # print("=========")
+                    pass
             except:
                print("error")
                check_match = False
@@ -192,13 +227,16 @@ class DigiRLTrainer:
         
         messages = []
         for critic_input, critic_image in zip(critic_inputs, critic_images):
-            messages.append([{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": critic_input},
-                    {"type": "image", "image": critic_image, "max_pixels": 56000}
-                ]
-            }])
+            try:
+                messages.append([{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": critic_input},
+                        {"type": "image", "image": critic_image, "max_pixels": 56000}
+                    ]
+                }])
+            except:
+                print(f"!!! error image: {critic_image}")
 
         texts = self.agent.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
@@ -266,6 +304,7 @@ class DigiRLTrainer:
                 loss, q_value = self.actor_loss(**batch)
                 losses.append(loss)
                 q_values.append(q_value)
+
             logging.info(f"step: {self.step}\tloss: {sum(losses) / len(losses):.2f}\tQ-values: {sum(q_values) / len(q_values):.4f}")
             logs.append({"step": self.step, "train loss": sum(losses) / len(losses), "train Q value": sum(q_values) / len(q_values)})
 
@@ -316,6 +355,7 @@ def get_peft_state_maybe_zero_3(named_params):
     return to_return
 
 
+
 def train(agent, accelerator, config):
     batch_size = config["batch_size"]
     trainer = DigiRLTrainer(
@@ -333,9 +373,10 @@ def train(agent, accelerator, config):
     val_trajectories = all_trajectories[int(len(all_trajectories) * 0.95):]
     random.shuffle(train_trajectories)
     sample_num = batch_size * config["grad_accum_steps"]
+
     for epoch in range(config["epochs"]):
         print(f"### epoch {epoch}")
-        for train_step in tqdm(range(len(train_trajectories) // sample_num)):
+        for train_step in range(len(train_trajectories) // sample_num):
             sample_trajectories = train_trajectories[train_step * sample_num: (train_step + 1) * sample_num]
 
             results = trainer.infer(sample_trajectories, batch_size)
@@ -356,8 +397,6 @@ def train(agent, accelerator, config):
             if not os.path.exists(os.path.join(save_path, f"epoch_{epoch}")):
                 os.mkdir(os.path.join(save_path, f"epoch_{epoch}"))
 
-            # trainer.save(os.path.join(save_path, f"epoch_{epoch}"))
-            # TODO check the right of this code
             state_dict = get_peft_state_maybe_zero_3(trainer.agent.model.named_parameters())
             trainer._save(os.path.join(save_path, f"epoch_{epoch}"), state_dict=state_dict)
 
@@ -400,7 +439,11 @@ def evaluation(agent, accelerator, config):
     if not os.path.exists(result_dir):
         os.mkdir(result_dir)
 
-    compute_matrix(results, position_dict)
+    for file in os.listdir(result_dir):
+        result_wpath = os.path.join(result_dir, file)
+        results = utils.read_jsonl(result_wpath)
+        print(f"================{result_wpath.split('/')[2]}================")
+        compute_matrix(results, position_dict)
     
 
 if __name__ == "__main__":

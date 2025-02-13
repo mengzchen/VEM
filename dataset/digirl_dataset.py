@@ -137,17 +137,13 @@ def qwen_action2step(step_data):
         click_point = "({},{})".format(click_point[0], click_point[1])
         action = "{{\"action_type\": {}, \"click_point\": {}}}".format(4, click_point)
     elif action_type == 'SCROLL_DOWN':
-        action_type_new = 0
-        action = "{{\"action_type\": {}}}".format(action_type_new)
+        action = "{{\"action_type\": {}}}".format(0)
     elif action_type == 'SCROLL_UP':
-        action_type_new = 1
-        action = "{{\"action_type\": {}}}".format(action_type_new)
+        action = "{{\"action_type\": {}}}".format(1)
     elif action_type == 'SCROLL_LEFT':
-        action_type_new = 8
-        action = "{{\"action_type\": {}}}".format(action_type_new)
+        action = "{{\"action_type\": {}}}".format(8)
     elif action_type == 'SCROLL_RIGHT':
-        action_type_new = 9
-        action = "{{\"action_type\": {}}}".format(action_type_new)
+        action = "{{\"action_type\": {}}}".format(9)
     elif action_type == "TYPE":
         action = "{{\"action_type\": {}, \"typed_text\": \"{}\"}}".format(3, step_data["typed_text"])
     elif action_type == "PRESS_HOME":
@@ -180,7 +176,7 @@ class Qwen2VLDataset():
                 self.anns.append({
                     "ep_id": ann["ep_id"],
                     "step_id": ann["step_id"],
-                    "policy_input": query_format.format(task, "".join(history[:ann["step_id"]])),
+                    "policy_input": query_format.format(task, " ".join(history[:ann["step_id"]])),
                     "policy_image": ann["policy_image"],
                     "policy_output": ann["policy_output"]
                 })
@@ -194,7 +190,7 @@ class Qwen2VLDataset():
                     history.append('Step' + str(i) + ': ' + format_action + ". ") 
                 
                 self.anns.append({
-                    "policy_inputs": query_format.format(task, "".join(history[:ann["step_ids"]])),
+                    "policy_inputs": query_format.format(task, " ".join(history[:ann["step_ids"]])),
                     "policy_images": ann["policy_images"],
                     "policy_outputs": ann["policy_outputs"],
                     "critic_inputs": ann["critic_inputs"],

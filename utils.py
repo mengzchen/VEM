@@ -134,7 +134,7 @@ def smooth(scalars: List[float]) -> List[float]:
 
     last = scalars[0]
     smoothed = []
-    weight = 1.8 * (1 / (1 + math.exp(-0.05 * len(scalars))) - 0.5)  # a sigmoid function
+    weight = 1.9 * (1 / (1 + math.exp(-0.05 * len(scalars))) - 0.5)  # a sigmoid function
     for next_val in scalars:
         smoothed_val = last * weight + (1 - weight) * next_val
         smoothed.append(smoothed_val)
@@ -168,3 +168,23 @@ def plot_loss(log_dir: str, keys: List[str] = ["loss"]) -> None:
 # for ann in anns[:20]:
 #     print(ann["rating"])
 #     print(ann["explanation"])
+
+# plt.switch_backend("agg")
+# data = read_jsonl("train_log.jsonl")[:200]
+
+
+# steps, metrics = [], []
+# for i in range(len(data)):
+#     if "train Q value" in data[i].keys():
+#         steps.append(data[i]["step"])
+#         metrics.append(data[i]["train Q value"])
+
+# plt.figure()
+# plt.plot(steps, metrics, color="#1f77b4", alpha=0.4, label="original")
+# plt.plot(steps, smooth(metrics), color="#1f77b4", label="smoothed")
+# plt.xlabel("step")
+# plt.ylabel("Q value")
+# plt.legend()
+# figure_path = os.path.join("training_q_value.png")
+# plt.savefig(figure_path, format="png", dpi=100)
+# print("Figure saved at:", figure_path)

@@ -278,6 +278,7 @@ Status: success or failure (don't return anything else)
 Start with "Q:".
 """
 
+
 prompt_webshop = """You're an expert in evaluating whether the Screenshot successfully completes the Task.
 
 =====Examples=====
@@ -356,6 +357,7 @@ A: I should expect to see <first expectation, then what's in the given screensho
 Status: success or failure (don't return anything else)
 Start with "Q:".
 """
+
 
 def build_prompt_general(config, task, image_path):
    if "general" in config["output_name"]:

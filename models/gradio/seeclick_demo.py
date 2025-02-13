@@ -4,6 +4,8 @@ import gradio as gr
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers.generation import GenerationConfig
 import spaces
+from peft import AutoPeftModelForCausalLM
+import argparse
 
 
 @spaces.GPU()
@@ -14,16 +16,23 @@ def predict(text, image_path):
         return response
     
 
-def main():
+def main(save_model):
     global tokenizer, model
-    model_dir = "checkpoints/SeeClick-aitw"
     qwen_path = "checkpoints/Qwen-VL-Chat"
     
-    model = AutoModelForCausalLM.from_pretrained(
-        model_dir, 
-        trust_remote_code=True, 
-        torch_dtype=torch.bfloat16
-    ).to("cuda").eval()
+    if save_model == "":
+        model = AutoModelForCausalLM.from_pretrained(
+            "./checkpoints/SeeClick-aitw", 
+            trust_remote_code=True, 
+            torch_dtype=torch.bfloat16
+        ).to("cuda")
+    else:
+        model = AutoPeftModelForCausalLM.from_pretrained(
+            save_model, 
+            trust_remote_code=True, 
+            torch_dtype=torch.bfloat16
+        ).to("cuda")
+
     tokenizer = AutoTokenizer.from_pretrained(qwen_path, padding_side="right", use_fast=False,trust_remote_code=True)
     tokenizer.pad_token_id = tokenizer.eod_id
     model.generation_config = GenerationConfig.from_pretrained(qwen_path, trust_remote_code=True)
@@ -41,4 +50,16 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--task', type=str, required=True)
+
+    args = parser.parse_args()
+
+    if args.task == "general":
+        save_model = f"checkpoints/seeclick_general_v3/epoch_0"
+    elif args.task == "webshop":
+        save_model = f"checkpoints/seeclick_webshop_v3/epoch_1"
+    else:
+        save_model = ""
+
+    main(save_model)

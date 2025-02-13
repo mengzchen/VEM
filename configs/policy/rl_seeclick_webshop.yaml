@@ -1,4 +1,4 @@
-model_name: seeclick_webshop_v2
+model_name: seeclick_webshop_v4
 
 # data 
 test_task: aitw_webshopping
@@ -10,6 +10,7 @@ policy_device: 'cuda:0'
 critic_device: 'cuda:1'
 qwen_path: './checkpoints/Qwen-VL-Chat'
 policy_lm: './checkpoints/SeeClick-aitw'
+# save_model: './checkpoints/seeclick_webshop_v3/epoch_0'
 save_model: ''
 critic_lm: './checkpoints/critic_shopping/merge-970'
 

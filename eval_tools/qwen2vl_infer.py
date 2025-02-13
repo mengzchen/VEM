@@ -16,9 +16,9 @@ class Infer:
         os.system(f"cp checkpoints/Qwen2-VL-7B-Instruct/chat_template.json {self.model_path}")
         self.model = Qwen2VLForConditionalGeneration.from_pretrained(
             self.model_path, torch_dtype="auto", device_map="auto"
-        )
+        ).eval()
 
-        self.processor = AutoProcessor.from_pretrained(self.model_path)
+        self.processor = AutoProcessor.from_pretrained(self.model_path, max_pixels=480*28*28)
 
         test_rpath = "data/aitw_anns/1218/general_val_critic.jsonl"
         
@@ -50,6 +50,7 @@ class Infer:
         inputs = inputs.to("cuda")
 
         return inputs
+    
 
     def infer_one(self, inputs):
         generated_ids = self.model.generate(**inputs, max_new_tokens=128)
@@ -86,4 +87,26 @@ class Infer:
         utils.write_jsonl(results, f"{self.model_path}/results.jsonl")
         self.compute_metrix(results)
 
-Infer(model_name="critic_0108_negative", step="590").infer_all()
+    def get_case(self, text, image):
+        ann = {
+            "critic_inputs": [{"value": text}],
+            "critic_images": image
+        }
+        inputs = self.get_input(ann)
+        result = self.infer_one(inputs)
+        print(result)
+
+
+from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
+task = "Show the shopping cart on newegg.com."
+history = """step 0: "action_type": "DUAL_POINT", "click_point": "[0.69,0.79]"
+step 1: "action_type": "DUAL_POINT", "click_point": "[0.43,0.07]"
+step 2: "action_type": "TYPE", "typed_text": "newegg.com" 
+"""
+action = "step 3: \"action_type\": \"DUAL_POINT\", \"click_point\": \"[0.19,0.16]\""
+# action = "step 3: \"action_type\": \"PRESS_HOME\""
+text = prompt_critic_system + prompt_critic_user.format(task, history, action)
+print(text)
+image = "test.png"
+Infer(model_name="critic_shopping", step="970").get_case(text, image)
+# critic = Infer(model_name="critic_shopping", step="970").infer_all()

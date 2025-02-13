@@ -1,4 +1,4 @@
-model_name: seeclick_general_v2
+model_name: seeclick_general_v4_epoch_8
 
 # data 
 test_task: aitw_general 
@@ -7,13 +7,14 @@ eval_data: './data/aitw_anns/0108/general_val_policy.jsonl'
 
 # model setting
 policy_device: 'cuda:0'
-critic_device: 'cuda:1'
+critic_device: 'cpu'
 qwen_path: './checkpoints/Qwen-VL-Chat'
 policy_lm: './checkpoints/SeeClick-aitw'
-save_model: ''
+save_model: './checkpoints/seeclick_general_v4/epoch_8'
+# save_model: ''
 critic_lm: './checkpoints/critic_1218/merge-520'
 
 # hparams
 epochs: 20
-batch_size: 1
-grad_accum_steps: 1
+batch_size: 3
+grad_accum_steps: 32
