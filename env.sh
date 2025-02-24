@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 export blob_dir="https://cloudaigcrdataeus.blob.core.windows.net/tunnel-data-code-eus/zhengjiani"
-export SAS="?sv=2023-01-03&st=2025-01-30T05%3A50%3A56Z&se=2025-02-06T05%3A50%3A00Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2025-01-30T05%3A50%3A56Z&ske=2025-02-06T05%3A50%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=8P%2FuJF%2BSghvaa3rWK3J3gkEycD0uwSN1RmeEWRjyaoI%3D"
+export SAS="?sv=2023-01-03&st=2025-02-13T03%3A15%3A52Z&se=2025-02-20T03%3A15%3A00Z&skoid=d42edb90-9b8e-4f54-aaa5-dc6c37cabd88&sktid=72f988bf-86f1-41af-91ab-2d7cd011db47&skt=2025-02-13T03%3A15%3A52Z&ske=2025-02-20T03%3A15%3A00Z&sks=b&skv=2023-01-03&sr=c&sp=racwdxltf&sig=kV%2BNKMOobRgqCNzoCeq0gjd08vOvA2DLxn%2F84ax7URA%3D"
 # ./azcopy copy "$blob_dir/checkpoints/Auto-UI-Base$SAS" /mimer/NOBACKUP/groups/softenable-design/zhengjiani --recursive
 # azcopy copy ./checkpoints "$blob_dir$SAS" --recursive
 
@@ -15,12 +15,12 @@ export SAS="?sv=2023-01-03&st=2025-01-30T05%3A50%3A56Z&se=2025-02-06T05%3A50%3A0
 # ./azcopy copy "$blob_dir/checkpoints/roberta-base$SAS" ./checkpoints --recursive
 
 # ./azcopy copy "$blob_dir/checkpoints/critic_1218$SAS" ./checkpoints --recursive
-# ./azcopy copy "$blob_dir/checkpoints/Qwen-VL-Chat$SAS" ./checkpoints --recursive
+./azcopy copy "$blob_dir/checkpoints/Qwen2.5-VL-7B-Instruct$SAS" ./checkpoints --recursive
 
 # ./azcopy copy "$blob_dir/checkpoints/SeeClick-aitw$SAS" ./checkpoints --recursive
 # ./azcopy copy "$blob_dir/checkpoints/rl-webshop$SAS" ./checkpoints --recursive
-./azcopy copy "$blob_dir/checkpoints/digirl-webshop-offline$SAS" ./checkpoints --recursive
-# ./azcopy copy ./checkpoints "$blob_dir$SAS" --recursive
+# ./azcopy copy "$blob_dir/checkpoints/Qwen2-VL-7B-Instruct/model-00003-of-00005.safetensors$SAS" ./checkpoints/Qwen2-VL-7B-Instruct --recursive
+# ./azcopy copy ./images "$blob_dir$SAS" --recursive
 
 # if [ ! -d "images" ]; then
 #    ./azcopy copy "$blob_dir/images$SAS" ./ --recursive

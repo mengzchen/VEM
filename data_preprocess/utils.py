@@ -71,10 +71,14 @@ def extract_scroll(action):
 def update_trajectory(anns, results):
     for (result, ann) in zip(results, anns):
         new_action = autoui_translate_action(result["output"])
-        new_action = extract_scroll(new_action)
+        try:
+            new_action = extract_scroll(new_action)
+        except:
+            print(f"error get new action: {new_action}")
+        
         new_action_desc = to_autoui(new_action, all_dict=False)
         
-        history_action_desc = "\n".join(ann["action_desc_list"][:ann["step_id"] - 1]) + "\n" + new_action_desc
+        history_action_desc = "\n".join(ann["action_desc_list"][:ann["step_id"] - 1])
         
         ann["critic_input"] = prompt_critic_system + prompt_critic_user.format(ann["task"], history_action_desc, new_action_desc)
         ann["policy_output"] = new_action_desc

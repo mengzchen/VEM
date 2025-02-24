@@ -127,7 +127,7 @@ class ReplayBuffer:
         self.current_size += 1
 
 
-def qwen_action2step(step_data):
+def seeclick_action2step(step_data):
     action_type = step_data["action_type"]
     
     if action_type == "DUAL_POINT":
@@ -170,13 +170,14 @@ class Qwen2VLDataset():
             for ann in anns:
                 task, history = ann["task"], []
                 for i, step in enumerate(ann["action_list"]):
-                    format_action = qwen_action2step(step)
+                    if i >= ann["step_id"]: break
+                    format_action = seeclick_action2step(step)
                     history.append('Step' + str(i) + ': ' + format_action + ". ") 
-                    
+                
                 self.anns.append({
                     "ep_id": ann["ep_id"],
                     "step_id": ann["step_id"],
-                    "policy_input": query_format.format(task, " ".join(history[:ann["step_id"]])),
+                    "policy_input": query_format.format(task, "".join(history[-4:])),
                     "policy_image": ann["policy_image"],
                     "policy_output": ann["policy_output"]
                 })
@@ -185,12 +186,14 @@ class Qwen2VLDataset():
             self.anns = []
             for ann in anns:
                 task, history = ann["tasks"], []
+                
                 for i, step in enumerate(ann["action_lists"]):
-                    format_action = qwen_action2step(step)
+                    if i >= ann["step_ids"]: break
+                    format_action = seeclick_action2step(step)
                     history.append('Step' + str(i) + ': ' + format_action + ". ") 
                 
                 self.anns.append({
-                    "policy_inputs": query_format.format(task, " ".join(history[:ann["step_ids"]])),
+                    "policy_inputs": query_format.format(task, "".join(history[-4:])),
                     "policy_images": ann["policy_images"],
                     "policy_outputs": ann["policy_outputs"],
                     "critic_inputs": ann["critic_inputs"],

@@ -56,42 +56,44 @@ def preprocess(
     input_ids = torch.tensor(input_ids, device="cuda:0")
     targets = torch.tensor(targets, device="cuda:0")
 
-    return input_ids, targets, input_ids.ne(tokenizer.pad_token_id)
+    return input_ids, targets, input_ids.ne(tokenizer.pad_token_id), targets.ne(tokenizer.pad_token_id)
 
 
-class Qwen2VLAgent(torch.nn.Module):
+class SeeclickAgent(torch.nn.Module):
     def __init__(self, accelerator, config, is_eval):
-        super(Qwen2VLAgent, self).__init__()
+        super(SeeclickAgent, self).__init__()
         if not is_eval:
-            print(f"### load policy: {config['policy_lm']}")
+            print(f"### load policy: {config['policy_lm']} on {config['policy_device']}")
             self.model = AutoModelForCausalLM.from_pretrained(
                 config["policy_lm"], 
                 trust_remote_code=True, 
                 torch_dtype=torch.bfloat16
             ).to(config["policy_device"])
-            # customized LoRA parameters
+
+            print("\tload lora")
             target_modules = []
-            target_layer_names = ["visual.conv1", "attn.in_proj", "attn.out_proj", "mlp.c_fc", "mlp.c_proj", "c_attn",
-                                "attn.c_proj", "w1", "w2"]
-            lora_supported_types = [torch.nn.Linear, torch.nn.Embedding, torch.nn.Conv2d, transformers.pytorch_utils.Conv1D]
-            for name, module in self.model.named_modules():
+            target_layer_names = ["visual.conv1", "attn.in_proj", "attn.out_proj", "mlp.c_fc", "mlp.c_proj", "c_attn", "attn.c_proj", "w1", "w2"]
+            
+            for name, _ in self.model.named_modules():
                 if any(t_name in name for t_name in target_layer_names) and 'attn_pool' not in name:
-                    if isinstance(module, tuple(lora_supported_types)):
-                        target_modules.append(name)
-                    else:
-                        print(name + " not satisfy lora")
-                        input()
-            modules_to_save = None
+                    target_modules.append(name)
+                    
             lora_config = LoraConfig(
                 r=64,
                 lora_alpha=16,
                 target_modules=target_modules,
                 lora_dropout=0.05,
                 task_type="CAUSAL_LM",
-                modules_to_save=modules_to_save  # This argument serves for adding new tokens.
+                modules_to_save=None
             )
             self.model = get_peft_model(self.model, lora_config)
             self.model.enable_input_require_grads()
+
+            print("\tforzen visual")
+            if hasattr(self.model, 'transformer') and hasattr(self.model.transformer, 'visual'):
+                self.model.transformer.visual.requires_grad_(False)
+                if hasattr(self.model.transformer.visual, 'attn_pool'):
+                    self.model.transformer.visual.attn_pool.requires_grad_(True)
             
         elif os.path.exists(config["save_model"]):
             print(f"### loading {config['save_model']}")
@@ -100,6 +102,7 @@ class Qwen2VLAgent(torch.nn.Module):
                 trust_remote_code=True, 
                 torch_dtype=torch.bfloat16
             ).to(config["policy_device"])
+
         else:
             self.model = AutoModelForCausalLM.from_pretrained(
                 config["policy_lm"], 
@@ -108,7 +111,7 @@ class Qwen2VLAgent(torch.nn.Module):
             ).to(config["policy_device"])
 
 
-        self.tokenizer = AutoTokenizer.from_pretrained(config["qwen_path"], padding_side="right", use_fast=False,trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(config["qwen_path"], padding_side="right", use_fast=False, trust_remote_code=True)
         self.tokenizer.pad_token_id = self.tokenizer.eod_id
         self.model.generation_config = GenerationConfig.from_pretrained(config["qwen_path"], trust_remote_code=True)
         
@@ -131,14 +134,13 @@ class Qwen2VLAgent(torch.nn.Module):
 
 
     def get_log_prob(self, texts, image_paths, targets):
-        input_ids, labels, attention_mask = preprocess(texts, image_paths, targets, self.tokenizer)
-        
+        input_ids, labels, attention_mask, target_mask = preprocess(texts, image_paths, targets, self.tokenizer)
         outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         prediction_probs = self.softmax(outputs.logits)
         selected_prediction_probs = torch.take_along_dim(prediction_probs, input_ids.unsqueeze(2), dim=2).squeeze(2)
         selected_prediction_probs = torch.clamp(selected_prediction_probs, min=0.001, max=0.99)
-        
-        return torch.log(selected_prediction_probs) * attention_mask
+
+        return torch.log(selected_prediction_probs) * target_mask
     
     
     def _get_action(self, text, image_path):

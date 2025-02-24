@@ -5,6 +5,7 @@ sys.path.insert(0, os.getcwd())
 from tqdm import tqdm
 import json
 import threading
+import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import utils
@@ -132,48 +133,47 @@ class AITW:
 
 
     def get_negative_anns(self, num):
+        def add_noise(point):
+            x, y = point
+            # delta_x = random.uniform(-0.1, 0.1)
+            # delta_y = random.uniform(-0.1, 0.1)
+            
+            new_x = max(0.0, min(1.0, x + 0.2))
+            new_y = max(0.0, min(1.0, y + 0.2))
+
+            return [new_x, new_y]
+        
         ann_rpath = f"data/aitw_anns/{self.date}/{self.part}_{self.split}_critic.jsonl"
         ann_wpath = f"data/aitw_anns/{self.date}/{self.part}_{self.split}_critic_negative.jsonl"
 
         step_ids = []
         anns = utils.read_jsonl(ann_rpath)
         for ann in anns:
-            if ann["critic_output"] == 2:
+            if ann["rating"] == 2 and ann["action_type"] == "DUAL_POINT":
                 step_ids.append(f"{ann['ep_id']}_{ann['step_id']}")
         step_ids = step_ids[:num]
         
         anns = [ann for ann in anns if f"{ann['ep_id']}_{ann['step_id']}" in step_ids]
         unfinish_anns = get_unfinish_anns(anns, ann_wpath)
 
-        write_lock = threading.Lock()
-
-        def process_ann(ann):
-            negative_action, negative_add_point_image_path = self.gpt.get_negative_action(ann)
-            new_prompt = prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), negative_action)
-        
-            conversations = [
-                {"from": "human", "value": new_prompt},
-                {"from": "gpt", "value": "1"}
-            ]
-            ann["critic_inputs"] = conversations
-            ann["critic_images"] = negative_add_point_image_path.replace("\\", "/")
-
-            return ann
-
-        # Open the file in append mode outside of the threads
         with open(ann_wpath, "a") as fout:
-            with ThreadPoolExecutor(max_workers=8) as executor:
-                future_to_ann = {executor.submit(process_ann, ann): ann for ann in unfinish_anns}
-                for future in tqdm(as_completed(future_to_ann), total=len(future_to_ann)):
-                    ann = future_to_ann[future]
-                    try:
-                        result = future.result()
-                        with write_lock:
-                            fout.writelines(json.dumps(result) + "\n")
-                    except Exception as exc:
-                        print(f'Error processing annotation {ann}: {exc}')
+            for ann in unfinish_anns:
+                new_point = add_noise(ann["touch_point"])
+                negative_action = {"action_type": "DUAL_POINT", "touch_point": new_point, "lift_point": new_point}
+                origin_image_path = ann["image_list"][ann["step_id"]].replace("\\", "/")
+                negative_add_point_image_path = utils.add_visilize2screenshot(origin_image_path, negative_action, "negative")
+                negative_action_desc = to_autoui(action_dict_to_class(negative_action), all_dict=False)
+                new_prompt = prompt_critic_system + prompt_critic_user.format(ann["task"], "\n".join(ann["action_desc_list"][:ann["step_id"]]), negative_action_desc)
+                
+                conversations = [
+                    {"from": "human", "value": new_prompt},
+                    {"from": "gpt", "value": "1"}
+                ]
+                ann["critic_inputs"] = conversations
+                ann["critic_images"] = negative_add_point_image_path.replace("\\", "/")
+                fout.writelines(json.dumps(ann) + "\n")
             
-            fout.close()
+        fout.close()
 
 
     def get_rl_data(self):
@@ -191,15 +191,14 @@ class AITW:
 
 
 if __name__ == "__main__":
-    date, part = "0108", "webshopping"
+    date, part = "0108", "general"
     aitw_data = AITW(split="train", part=part, date=date)
-    aitw_data.get_unfold_data()
+    # aitw_data.get_unfold_data()
     # aitw_data.get_gpt_label()
     # aitw_data.get_rl_data()
-    # aitw_data.get_negative_anns(num=500)
+    aitw_data.get_negative_anns(num=500)
 
     # aitw_data = AITW(split="val", part=part, date=date)
     # aitw_data.get_unfold_data()
     # aitw_data.get_gpt_label()
     # aitw_data.get_rl_data()
-    pass

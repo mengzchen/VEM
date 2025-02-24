@@ -1,22 +1,22 @@
 {
-  "critic_train": {
-    "file_name": "aitw_anns/0108/webshopping_train_critic.jsonl",
+  "critic_train_general": {
+    "file_name": "aitw_anns/0108/general_train_critic.jsonl",
     "formatting": "sharegpt",
     "columns": {
       "messages": "critic_inputs",
       "images": "critic_images"
     }
   },
-  "critic_train_negative": {
-    "file_name": "aitw_anns/0108/webshopping_train_critic_negative.jsonl",
+  "critic_train_general_negative": {
+    "file_name": "aitw_anns/0108/general_train_critic_negative.jsonl",
     "formatting": "sharegpt",
     "columns": {
       "messages": "critic_inputs",
       "images": "critic_images"
     }
   },
-  "critic_val": {
-    "file_name": "aitw_anns/0108/webshopping_val_critic.jsonl",
+  "critic_val_general": {
+    "file_name": "aitw_anns/0108/general_val_critic.jsonl",
     "formatting": "sharegpt",
     "columns": {
       "messages": "critic_inputs",

@@ -20,7 +20,10 @@ class Infer:
 
         self.processor = AutoProcessor.from_pretrained(self.model_path, max_pixels=480*28*28)
 
-        test_rpath = "data/aitw_anns/1218/general_val_critic.jsonl"
+        if "shopping" in model_name:
+            test_rpath = "data/aitw_anns/0108/webshopping_val_critic.jsonl"
+        else:
+            test_rpath = "data/aitw_anns/0108/general_val_critic.jsonl"
         
         self.anns = utils.read_jsonl(test_rpath)
 
@@ -66,7 +69,10 @@ class Infer:
     def compute_metrix(self, results):
         y_true, y_pred = [], []
         for result in results:
-            y_true.append(result["rating"])
+            if "rating" in result.keys():
+                y_true.append(result["rating"])
+            else:
+                y_true.append(result["critic_output"])
             y_pred.append(result["prediction"])
             
         print(classification_report(y_true, y_pred, zero_division=1))
@@ -97,16 +103,16 @@ class Infer:
         print(result)
 
 
-from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
-task = "Show the shopping cart on newegg.com."
-history = """step 0: "action_type": "DUAL_POINT", "click_point": "[0.69,0.79]"
-step 1: "action_type": "DUAL_POINT", "click_point": "[0.43,0.07]"
-step 2: "action_type": "TYPE", "typed_text": "newegg.com" 
-"""
-action = "step 3: \"action_type\": \"DUAL_POINT\", \"click_point\": \"[0.19,0.16]\""
-# action = "step 3: \"action_type\": \"PRESS_HOME\""
-text = prompt_critic_system + prompt_critic_user.format(task, history, action)
-print(text)
-image = "test.png"
-Infer(model_name="critic_shopping", step="970").get_case(text, image)
-# critic = Infer(model_name="critic_shopping", step="970").infer_all()
+# from data_preprocess.prompt import prompt_critic_system, prompt_critic_user
+# task = "Show the shopping cart on newegg.com."
+# history = """step 0: "action_type": "DUAL_POINT", "click_point": "[0.69,0.79]"
+# step 1: "action_type": "DUAL_POINT", "click_point": "[0.43,0.07]"
+# step 2: "action_type": "TYPE", "typed_text": "newegg.com" 
+# """
+# action = "step 3: \"action_type\": \"DUAL_POINT\", \"click_point\": \"[0.19,0.16]\""
+# # action = "step 3: \"action_type\": \"PRESS_HOME\""
+# text = prompt_critic_system + prompt_critic_user.format(task, history, action)
+# print(text)
+# image = "test.png"
+# Infer(model_name="critic_shopping", step="970").get_case(text, image)
+critic = Infer(model_name="critic_general_qwen2.5", step="2780").infer_all()
